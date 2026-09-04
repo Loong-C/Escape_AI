@@ -5,7 +5,11 @@ from pathlib import Path
 import torch
 
 from escape_ai.search import UniformEvaluator
-from escape_ai.training.checkpoint import load_checkpoint, save_checkpoint
+from escape_ai.training.checkpoint import (
+    load_checkpoint,
+    load_training_checkpoint,
+    save_checkpoint,
+)
 from escape_ai.training.data import load_training_batch, write_training_shard
 from escape_ai.training.learner import LearnerConfig, train_model
 from escape_ai.training.model import NetworkConfig, PolicyValueNet
@@ -56,3 +60,6 @@ def test_smoke_learning_and_checkpoint_round_trip(tmp_path: Path) -> None:
     assert metadata == {"lineage": "test", "seed": 99}
     for name, tensor in model.state_dict().items():
         assert torch.equal(tensor.cpu(), restored.state_dict()[name])
+    _model, _metadata, optimizer_state = load_training_checkpoint(checkpoint)
+    assert optimizer_state is not None
+    assert optimizer_state["state"]

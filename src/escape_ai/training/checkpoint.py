@@ -59,6 +59,17 @@ def load_checkpoint(
 ) -> tuple[PolicyValueNet, dict[str, Any]]:
     """Load a checkpoint using Torch's restricted weights-only unpickler."""
 
+    model, metadata, _optimizer_state = load_training_checkpoint(path, device=device)
+    return model, metadata
+
+
+def load_training_checkpoint(
+    path: Path,
+    *,
+    device: torch.device | str = "cpu",
+) -> tuple[PolicyValueNet, dict[str, Any], dict[str, Any] | None]:
+    """Load model provenance plus optional optimizer state for exact resumption."""
+
     raw = torch.load(path, map_location=device, weights_only=True)
     if not isinstance(raw, dict) or raw.get("schema_version") != CHECKPOINT_SCHEMA_VERSION:
         raise ValueError("unsupported checkpoint schema")
@@ -67,4 +78,8 @@ def load_checkpoint(
     model.load_state_dict(cast(dict[str, Any], raw["model_state"]))
     model.to(device)
     metadata = cast(dict[str, Any], raw.get("metadata", {}))
-    return model, metadata
+    optimizer_raw = raw.get("optimizer_state")
+    optimizer_state = (
+        cast(dict[str, Any], optimizer_raw) if isinstance(optimizer_raw, dict) else None
+    )
+    return model, metadata, optimizer_state

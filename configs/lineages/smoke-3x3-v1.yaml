@@ -1,0 +1,38 @@
+schema_version: 1
+run_id: lineage-smoke-3x3-v1
+lineage: smoke
+seed: 20260904
+generations: 2
+games_per_generation: 4
+games_per_shard: 2
+actor_batch_size: 4
+replay_window_shards: 4
+replay_sample_positions: 128
+device: cuda
+require_clean_worktree: true
+
+network:
+  input_channels: 6
+  channels: 16
+  residual_blocks: 2
+  value_channels: 4
+  value_hidden: 16
+
+self_play:
+  board_size: 3
+  simulations: 8
+  c_puct: 1.5
+  dirichlet_alpha: 0.3
+  dirichlet_fraction: 0.25
+  temperature: 1.0
+  temperature_drop_ply: 8
+  late_temperature: 0.1
+  parallel_leaves: 4
+
+learner:
+  steps: 5
+  batch_size: 32
+  learning_rate: 0.002
+  weight_decay: 0.0001
+  gradient_clip: 5.0
+  use_amp: true

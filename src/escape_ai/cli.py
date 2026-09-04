@@ -257,3 +257,22 @@ def run_model_league(
             indent=2,
         )
     )
+
+
+@app.command("run-lineage")
+def run_training_lineage(
+    config: str = typer.Option(..., help="Committed YAML lineage configuration"),
+) -> None:
+    """Run or resume a multi-generation AlphaZero lineage."""
+
+    from pathlib import Path
+
+    from .training.lineage import run_lineage
+
+    repo_root = Path(__file__).resolve().parents[2]
+    result = run_lineage(
+        Path(config),
+        repo_root=repo_root,
+        progress=lambda message: typer.echo(message, err=True),
+    )
+    typer.echo(json.dumps({"status": "ok", **asdict(result)}, indent=2, default=str))

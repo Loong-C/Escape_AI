@@ -8,7 +8,11 @@ import pytest
 
 from escape_ai import _escape_core
 from escape_ai.search import UniformEvaluator
-from escape_ai.training.data import load_training_batch, write_training_shard
+from escape_ai.training.data import (
+    load_training_batch,
+    load_training_sample,
+    write_training_shard,
+)
 from escape_ai.training.selfplay import SelfPlayConfig, play_self_game, play_self_games
 
 
@@ -83,3 +87,8 @@ def test_parquet_shard_round_trips_into_training_arrays(tmp_path: Path) -> None:
     for row, serialized in enumerate(table.column("state").to_pylist()):
         state = _escape_core.State.deserialize(serialized)
         assert np.flatnonzero(batch.legal_masks[row]).tolist() == state.legal_actions()
+
+    sample = load_training_sample([path], maximum_positions=5, seed=77)
+    repeated = load_training_sample([path], maximum_positions=5, seed=77)
+    assert sample.features.shape[0] == 5
+    np.testing.assert_array_equal(sample.features, repeated.features)

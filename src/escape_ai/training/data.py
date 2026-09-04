@@ -137,7 +137,46 @@ def load_training_batch(paths: Iterable[Path]) -> TrainingBatch:
     tables = [pq.read_table(path) for path in paths]  # type: ignore[no-untyped-call]
     if not tables:
         raise ValueError("at least one training shard is required")
-    table = pa.concat_tables(tables)
+    return _table_to_training_batch(pa.concat_tables(tables))
+
+
+def load_training_sample(
+    paths: Iterable[Path],
+    *,
+    maximum_positions: int,
+    seed: int,
+) -> TrainingBatch:
+    """Uniformly sample rows without materializing every replay shard."""
+
+    selected_paths = list(paths)
+    if not selected_paths or maximum_positions < 1:
+        raise ValueError("replay paths and maximum_positions must be non-empty")
+    row_counts = [
+        pq.ParquetFile(path).metadata.num_rows  # type: ignore[no-untyped-call]
+        for path in selected_paths
+    ]
+    total_rows = sum(row_counts)
+    if maximum_positions >= total_rows:
+        return load_training_batch(selected_paths)
+
+    rng = np.random.default_rng(seed)
+    global_rows = np.sort(rng.choice(total_rows, size=maximum_positions, replace=False))
+    tables: list[Any] = []
+    offset = 0
+    for path, row_count in zip(selected_paths, row_counts, strict=True):
+        local = global_rows[(global_rows >= offset) & (global_rows < offset + row_count)] - offset
+        offset += row_count
+        if not len(local):
+            continue
+        table = pq.read_table(  # type: ignore[no-untyped-call]
+            path,
+            columns=["state", "policy", "value_target"],
+        )
+        tables.append(table.take(pa.array(local)))
+    return _table_to_training_batch(pa.concat_tables(tables))
+
+
+def _table_to_training_batch(table: Any) -> TrainingBatch:
     serialized_states = table.column("state").to_pylist()
     states = [_escape_core.State.deserialize(value) for value in serialized_states]
     board_sizes = {state.size for state in states}

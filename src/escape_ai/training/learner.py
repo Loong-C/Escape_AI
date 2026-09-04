@@ -60,6 +60,7 @@ def train_model(
     *,
     device: torch.device | str,
     seed: int,
+    optimizer: torch.optim.Optimizer | None = None,
 ) -> tuple[torch.optim.Optimizer, LearnerMetrics]:
     """Train for a fixed number of optimizer steps with deterministic sampling."""
 
@@ -88,11 +89,12 @@ def train_model(
         num_workers=0,
         drop_last=False,
     )
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=config.learning_rate,
-        weight_decay=config.weight_decay,
-    )
+    if optimizer is None:
+        optimizer = torch.optim.AdamW(
+            model.parameters(),
+            lr=config.learning_rate,
+            weight_decay=config.weight_decay,
+        )
     use_amp = config.use_amp and selected_device.type == "cuda"
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)  # type: ignore[attr-defined]
     model.to(selected_device)

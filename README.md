@@ -38,9 +38,14 @@ pwsh scripts/bootstrap.ps1
 .venv\Scripts\escape-ai benchmark-baselines --games 4 --size 3
 .venv\Scripts\escape-ai run-experiment --config configs/experiments/az-smoke-3x3.yaml
 .venv\Scripts\escape-ai run-league --config configs/leagues/smoke-3x3-v1.yaml
+.venv\Scripts\escape-ai run-lineage --config configs/lineages/smoke-3x3-v1.yaml
 ```
 
 正式实验只接受已提交配置并要求干净工作树。Parquet replay、checkpoint 和带完整
 Git/配置/数据/模型哈希的 manifest 会原子写入 `G:\Escape\_AI`。
+
+`configs/lineages/lineage-{a,b,c}-17x17-v1.yaml` 定义了三条互相独立的
+100,000 局正式谱系。每个 Parquet shard 都会更新恢复点；中断后只从已确认的
+shard 边界继续，且配置或 Git commit 改变时拒绝混合续跑。
 
 `bootstrap.ps1` 会安装首阶段依赖、建立 `G:\Escape\_AI` 目录并使用 MSVC 2022 构建 C++ 扩展。仅需重新编译时可运行 `pwsh scripts/build_cpp.ps1`。
