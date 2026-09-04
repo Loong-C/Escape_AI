@@ -1,0 +1,15 @@
+schema_version: 1
+rules:
+  standard_board_size: 17
+  supported_board_sizes: [3, 5, 7, 9, 11, 13, 15, 17]
+artifacts:
+  root: "G:/Escape/_AI"
+  maximum_bytes: 429496729600
+  minimum_free_bytes: 85899345920
+resources:
+  maximum_logical_cpus: 26
+  maximum_ram_bytes: 30064771072
+  maximum_vram_bytes: 7730941132
+reproducibility:
+  lineage_seeds: [20260903, 20260904, 20260905]
+

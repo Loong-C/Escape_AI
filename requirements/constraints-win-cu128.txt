@@ -1,0 +1,19 @@
+# Direct dependencies verified on the initial Windows/CUDA workstation.
+# Transitive resolution remains owned by pyproject.toml and the isolated venv.
+numpy==2.0.2
+PyYAML==6.0.1
+typer==0.27.2
+
+hypothesis==6.167.1
+mypy==1.20.2
+pytest==8.4.2
+ruff==0.16.6
+
+duckdb==1.5.5
+pyarrow==24.0.0
+
+torch==2.11.0+cu128
+
+fastapi==0.136.1
+uvicorn==0.46.0
+

@@ -1,0 +1,29 @@
+# Escape AI
+
+Escape AI 是面向 17 × 17 Escape 抽象策略游戏的计算研究平台。项目将依次建立经过交叉验证的规则引擎、精确求解器、基准 AI、AlphaZero 自对弈系统、模型联赛、研究棋谱库和本地棋谱查看器。
+
+## 当前状态
+
+- 正式规则：17 × 17；研究代码同时支持 3–17 的奇数棋盘。
+- 规则来源：`F:\Personal\Code\Escape\docs\Rule.md`，冻结副本见 `docs/Rule.md`。
+- 源代码与报告：`F:\Personal\Code\Escape_AI`。
+- 大型产物：`G:\Escape\_AI`。
+- 当前里程碑：规则与实验环境基线。
+
+## 架构边界
+
+- `src/escape_ai`：Python 参考实现、训练、评测和研究工具。
+- `cpp`：后续 C++20 优化规则与搜索核心。
+- `viewer`：后续 React/Vite/Phaser 只读棋谱查看器。
+- `configs`：可提交的实验配置；机器本地覆盖放在被忽略的 `configs/local.toml`。
+- 大型数据不进入仓库。正式运行只在 Git 中保存配置、结果摘要和内容校验和。
+
+## 环境
+
+要求 Python 3.12、CMake 3.20+、MSVC 2022，以及支持 CUDA 的 PyTorch 环境。首次安装：
+
+```powershell
+pwsh scripts/bootstrap.ps1
+```
+
+环境验证与测试命令将在参考引擎里程碑中启用。

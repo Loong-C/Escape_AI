@@ -1,0 +1,26 @@
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+
+build/
+dist/
+*.egg-info/
+
+# Machine-local configuration and generated research artifacts.
+configs/local.toml
+artifacts/
+cache/
+checkpoints/
+games/
+replay/
+runs/
+
+# Editors and operating-system noise.
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
