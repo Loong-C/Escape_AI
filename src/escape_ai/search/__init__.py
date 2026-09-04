@@ -2,6 +2,7 @@
 
 from .agents import Agent, GreedyAgent, HeuristicAgent, PureMCTSAgent, RandomAgent
 from .arena import MatchResult, play_game, run_match
+from .neural_agent import NeuralPUCTAgent
 from .oracle import OracleResult, SearchLimitExceeded, solve_exact
 from .puct import (
     ActionStatistics,
@@ -20,6 +21,7 @@ __all__ = [
     "GreedyAgent",
     "HeuristicAgent",
     "MatchResult",
+    "NeuralPUCTAgent",
     "OracleResult",
     "PUCTSearch",
     "PositionEvaluator",

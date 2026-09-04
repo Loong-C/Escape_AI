@@ -1,0 +1,20 @@
+schema_version: 1
+league_id: league-smoke-3x3-v1
+seed: 20260904
+board_size: 3
+games_per_matchup: 8
+simulations: 32
+c_puct: 1.5
+device: cuda
+pure_mcts_simulations: 50
+require_clean_worktree: true
+
+checkpoint:
+  path: "G:/Escape/_AI/checkpoints/az-smoke-3x3-v1/final.pt"
+  sha256: "f024480c870569ddf16325f57bbec8e94b5f385c91b4975aaefc0b4e26f10877"
+
+opponents:
+  - random
+  - greedy
+  - heuristic
+  - pure-mcts

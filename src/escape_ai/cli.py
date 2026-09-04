@@ -230,3 +230,30 @@ def run_training_experiment(
             indent=2,
         )
     )
+
+
+@app.command("run-league")
+def run_model_league(
+    config: str = typer.Option(..., help="Committed YAML league configuration"),
+) -> None:
+    """Evaluate a hashed checkpoint in color-paired cross-play."""
+
+    from pathlib import Path
+
+    from .evaluation.runner import run_checkpoint_league
+
+    repo_root = Path(__file__).resolve().parents[2]
+    result = run_checkpoint_league(Path(config), repo_root=repo_root)
+    typer.echo(
+        json.dumps(
+            {
+                "status": "ok",
+                "league_id": result.config.league_id,
+                "git_commit": result.git_commit,
+                "model_id": result.model_id,
+                "matches": [asdict(match) for match in result.league.matches],
+                "output": str(result.output),
+            },
+            indent=2,
+        )
+    )
