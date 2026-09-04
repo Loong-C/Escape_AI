@@ -8,13 +8,13 @@ Escape AI 是面向 17 × 17 Escape 抽象策略游戏的计算研究平台。�
 - 规则来源：`F:\Personal\Code\Escape\docs\Rule.md`，冻结副本见 `docs/Rule.md`。
 - 源代码与报告：`F:\Personal\Code\Escape_AI`。
 - 大型产物：`G:\Escape\_AI`。
-- 当前里程碑：双规则引擎、验证器、固定基线、OpenSpiel 与神经 PUCT 核心。
+- 当前里程碑：双规则引擎、验证器、固定基线、OpenSpiel、神经 PUCT、自对弈训练、模型联赛、研究记录/分析器与只读棋谱查看器。
 
 ## 架构边界
 
 - `src/escape_ai`：Python 参考实现、搜索、训练、评测和研究工具。
 - `cpp`：C++20 优化规则核心与 Python 绑定。
-- `viewer`：后续 React/Vite/Phaser 只读棋谱查看器。
+- `viewer`：React/Vite/Phaser 只读棋谱查看器；棋盘只消费服务端解码后的规则状态。
 - `configs`：可提交的实验配置；机器本地覆盖放在被忽略的 `configs/local.toml`。
 - 大型数据不进入仓库。正式运行只在 Git 中保存配置、结果摘要和内容校验和。
 
@@ -42,6 +42,19 @@ pwsh scripts/bootstrap.ps1
 .venv\Scripts\escape-ai generate-research-games --config configs/games/research-smoke-3x3-v1.yaml
 .venv\Scripts\escape-ai analyze-games --input "G:/Escape/_AI/games/research-smoke-3x3-v1" --output "G:/Escape/_AI/runs/research-smoke-3x3-v1/analysis.json"
 ```
+
+构建并打开研究棋谱查看器：
+
+```powershell
+cd viewer
+npm ci
+npm run build
+cd ..
+.venv\Scripts\escape-ai serve-viewer --games "G:/Escape/_AI/games/research-smoke-3x3-v1"
+```
+
+随后访问 `http://127.0.0.1:8765`。查看器支持候选着访问分布、Q 值、方向距离、
+结构特征、战术标签、首尾局面与键盘时间轴；它不会修改棋谱或重新执行规则。
 
 正式实验只接受已提交配置并要求干净工作树。Parquet replay、checkpoint 和带完整
 Git/配置/数据/模型哈希的 manifest 会原子写入 `G:\Escape\_AI`。

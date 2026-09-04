@@ -310,3 +310,25 @@ def analyze_games(
 
     result = analyze_research_games(input_glob, Path(output))
     typer.echo(json.dumps({"status": "ok", **result}, indent=2, default=str))
+
+
+@app.command("serve-viewer")
+def serve_viewer(
+    games: str = typer.Option(..., help="Research Parquet directory or glob"),
+    host: str = typer.Option("127.0.0.1", help="Bind address"),
+    port: int = typer.Option(8765, min=1, max=65535, help="Bind port"),
+) -> None:
+    """Serve the read-only research API and built viewer."""
+
+    from pathlib import Path
+
+    import uvicorn
+
+    from .research.viewer_api import ResearchGameRepository, create_viewer_app
+
+    repo_root = Path(__file__).resolve().parents[2]
+    application = create_viewer_app(
+        ResearchGameRepository(games),
+        repo_root / "viewer" / "dist",
+    )
+    uvicorn.run(application, host=host, port=port)
