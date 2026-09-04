@@ -50,6 +50,8 @@ def _canonical_action(action: int, size: int) -> int:
 def analyze_research_games(input_glob: str, output: Path) -> dict[str, object]:
     """Summarize outcomes/diversity and retain the strongest tactical anomalies."""
 
+    input_path = Path(input_glob)
+    source = str(input_path / "*.parquet") if input_path.is_dir() else input_glob
     connection = duckdb.connect()
     overview_row = connection.execute(
         """
@@ -70,7 +72,7 @@ def analyze_research_games(input_glob: str, output: Path) -> dict[str, object]:
                count(*) FILTER (WHERE winner IS NULL) draws
         FROM games
         """,
-        [input_glob],
+        [source],
     ).fetchone()
     if overview_row is None or int(overview_row[0]) == 0:
         raise ValueError("research input contains no games")
@@ -85,7 +87,7 @@ def analyze_research_games(input_glob: str, output: Path) -> dict[str, object]:
                count(DISTINCT model_id)
         FROM read_parquet(?)
         """,
-        [input_glob],
+        [source],
     ).fetchone()
     assert move_row is not None
 
@@ -95,7 +97,7 @@ def analyze_research_games(input_glob: str, output: Path) -> dict[str, object]:
         FROM read_parquet(?) WHERE ply = 0
         GROUP BY action, board_size
         """,
-        [input_glob],
+        [source],
     ).fetchall()
     raw_openings: Counter[int] = Counter()
     canonical_openings: Counter[int] = Counter()
@@ -128,7 +130,7 @@ def analyze_research_games(input_glob: str, output: Path) -> dict[str, object]:
                  policy_entropy ASC
         LIMIT 100
         """,
-        [input_glob],
+        [source],
     ).fetchall()
     candidate_names = (
         "game_id",
@@ -150,7 +152,7 @@ def analyze_research_games(input_glob: str, output: Path) -> dict[str, object]:
     ]
     result: dict[str, object] = {
         "schema_version": 1,
-        "input": input_glob,
+        "input": source,
         "overview": {
             "games": int(overview_row[0]),
             "moves": int(overview_row[1]),
