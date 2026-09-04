@@ -63,4 +63,14 @@ Git/配置/数据/模型哈希的 manifest 会原子写入 `G:\Escape\_AI`。
 100,000 局正式谱系。每个 Parquet shard 都会更新恢复点；中断后只从已确认的
 shard 边界继续，且配置或 Git commit 改变时拒绝混合续跑。
 
+在干净且已推送的正式提交上顺序运行或恢复三条谱系：
+
+```powershell
+pwsh scripts/run_formal_lineages.ps1
+```
+
+启动器使用全局互斥锁避免重复生产，并将日志和完成标记写入
+`G:\Escape\_AI\runs\formal-lineages`。训练期间不得改变工作树或 HEAD；各谱系会
+在 shard 边界原子保存恢复点。
+
 `bootstrap.ps1` 会安装首阶段依赖、建立 `G:\Escape\_AI` 目录并使用 MSVC 2022 构建 C++ 扩展。仅需重新编译时可运行 `pwsh scripts/build_cpp.ps1`。
