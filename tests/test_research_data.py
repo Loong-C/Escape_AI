@@ -58,3 +58,22 @@ def test_research_games_write_queryable_parquet(tmp_path: Path) -> None:
 
     directory_analysis = analyze_research_games(str(tmp_path), tmp_path / "directory.json")
     assert directory_analysis["overview"]["games"] == 2
+
+
+def test_seeded_opening_exploration_produces_multiple_lines() -> None:
+    games = play_research_games(
+        UniformEvaluator(),
+        ResearchSearchConfig(
+            board_size=3,
+            simulations=8,
+            parallel_leaves=4,
+            opening_plies=4,
+            opening_temperature=1.0,
+            add_root_noise=True,
+        ),
+        seeds=list(range(8)),
+        white_model_id="uniform",
+        game_ids=[f"diverse-{index}" for index in range(8)],
+    )
+    first_actions = {game.moves[0].action for game in games}
+    assert len(first_actions) > 1

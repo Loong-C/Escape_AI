@@ -19,6 +19,8 @@ class ResearchSearchConfig:
     c_puct: float = 1.5
     parallel_leaves: int = 16
     temperature: float = 0.0
+    opening_temperature: float = 1.0
+    opening_plies: int = 0
     add_root_noise: bool = False
     top_candidates: int = 16
     compute_reply_resistance: bool = False
@@ -101,6 +103,8 @@ def play_research_games(
     active = list(range(len(states)))
     while active:
         active_states = [states[index] for index in active]
+        opening = active_states[0].ply < config.opening_plies
+        temperature = config.opening_temperature if opening else config.temperature
         results_by_index: dict[int, SearchResult] = {}
         groups = (
             [active]
@@ -117,8 +121,8 @@ def play_research_games(
             group_results = search.run_batch(
                 [states[index] for index in group],
                 [rngs[index] for index in group],
-                temperatures=[config.temperature] * len(group),
-                add_root_noise=config.add_root_noise,
+                temperatures=[temperature] * len(group),
+                add_root_noise=config.add_root_noise and opening,
                 include_statistics=True,
             )
             results_by_index.update(zip(group, group_results, strict=True))
