@@ -40,6 +40,7 @@ pwsh scripts/bootstrap.ps1
 .venv\Scripts\escape-ai run-league --config configs/leagues/smoke-3x3-v1.yaml
 .venv\Scripts\escape-ai run-lineage --config configs/lineages/smoke-3x3-v1.yaml
 .venv\Scripts\escape-ai generate-research-games --config configs/games/research-smoke-3x3-v1.yaml
+.venv\Scripts\escape-ai analyze-games --input "G:/Escape/_AI/games/research-smoke-3x3-v1/*.parquet" --output "G:/Escape/_AI/runs/research-smoke-3x3-v1/analysis.json"
 ```
 
 正式实验只接受已提交配置并要求干净工作树。Parquet replay、checkpoint 和带完整

@@ -5,6 +5,7 @@ from pathlib import Path
 import pyarrow.parquet as pq
 
 from escape_ai import _escape_core
+from escape_ai.research.analyze import analyze_research_games
 from escape_ai.research.data import write_research_shard
 from escape_ai.research.features import position_features, transition_features
 from escape_ai.research.games import ResearchSearchConfig, play_research_games
@@ -47,3 +48,10 @@ def test_research_games_write_queryable_parquet(tmp_path: Path) -> None:
         "reply_resistance",
         "winner",
     }
+
+    analysis_path = tmp_path / "analysis.json"
+    analysis = analyze_research_games(str(path), analysis_path)
+    assert analysis["overview"]["games"] == 2
+    assert analysis["overview"]["moves"] == summary.moves
+    assert analysis["openings"]["canonical_distinct"] >= 1
+    assert analysis_path.is_file()

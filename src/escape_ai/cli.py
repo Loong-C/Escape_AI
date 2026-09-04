@@ -295,3 +295,18 @@ def generate_research_games(
         progress=lambda message: typer.echo(message, err=True),
     )
     typer.echo(json.dumps({"status": "ok", **asdict(result)}, indent=2, default=str))
+
+
+@app.command("analyze-games")
+def analyze_games(
+    input_glob: str = typer.Option(..., "--input", help="Parquet path or glob"),
+    output: str = typer.Option(..., help="JSON analysis output path"),
+) -> None:
+    """Summarize research games and mine tactical candidate positions."""
+
+    from pathlib import Path
+
+    from .research.analyze import analyze_research_games
+
+    result = analyze_research_games(input_glob, Path(output))
+    typer.echo(json.dumps({"status": "ok", **result}, indent=2, default=str))
