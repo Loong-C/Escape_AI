@@ -8,12 +8,12 @@ Escape AI 是面向 17 × 17 Escape 抽象策略游戏的计算研究平台。�
 - 规则来源：`F:\Personal\Code\Escape\docs\Rule.md`，冻结副本见 `docs/Rule.md`。
 - 源代码与报告：`F:\Personal\Code\Escape_AI`。
 - 大型产物：`G:\Escape\_AI`。
-- 当前里程碑：Python Reference Engine。
+- 当前里程碑：参考/优化双引擎、精确求解器与四类固定基线 AI。
 
 ## 架构边界
 
-- `src/escape_ai`：Python 参考实现、训练、评测和研究工具。
-- `cpp`：后续 C++20 优化规则与搜索核心。
+- `src/escape_ai`：Python 参考实现、搜索、训练、评测和研究工具。
+- `cpp`：C++20 优化规则核心与 Python 绑定。
 - `viewer`：后续 React/Vite/Phaser 只读棋谱查看器。
 - `configs`：可提交的实验配置；机器本地覆盖放在被忽略的 `configs/local.toml`。
 - 大型数据不进入仓库。正式运行只在 Git 中保存配置、结果摘要和内容校验和。
@@ -34,6 +34,7 @@ pwsh scripts/bootstrap.ps1
 .venv\Scripts\python -m pytest
 .venv\Scripts\escape-ai validate --games 20 --sizes 3,5,9,17
 .venv\Scripts\escape-ai differential --games 20 --sizes 3,5,9,17
+.venv\Scripts\escape-ai benchmark-baselines --games 4 --size 3
 ```
 
 `bootstrap.ps1` 会安装首阶段依赖、建立 `G:\Escape\_AI` 目录并使用 MSVC 2022 构建 C++ 扩展。仅需重新编译时可运行 `pwsh scripts/build_cpp.ps1`。

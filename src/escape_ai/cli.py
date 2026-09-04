@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import random
-from dataclasses import replace
+from dataclasses import asdict, replace
+from itertools import combinations
 
 import typer
 
@@ -120,6 +121,59 @@ def differential(
                 "games": summary.games,
                 "states": summary.states,
                 "plies": summary.plies,
+            },
+            indent=2,
+        )
+    )
+
+
+@app.command("benchmark-baselines")
+def benchmark_baselines(
+    games: int = typer.Option(4, min=2, help="Games per paired matchup"),
+    size: int = typer.Option(3, min=3, max=17, help="Odd board size"),
+    seed: int = typer.Option(20260904, help="Deterministic tournament seed"),
+    mcts_simulations: int = typer.Option(100, min=1, help="Pure-MCTS simulations per move"),
+) -> None:
+    """Run a deterministic round robin over the four fixed baselines."""
+
+    from .search import (
+        Agent,
+        GreedyAgent,
+        HeuristicAgent,
+        PureMCTSAgent,
+        RandomAgent,
+        run_match,
+    )
+
+    if size % 2 == 0:
+        raise typer.BadParameter("board size must be odd", param_hint="--size")
+    if games % 2 != 0:
+        raise typer.BadParameter("games must be even for color pairing", param_hint="--games")
+
+    agents: list[Agent] = [
+        RandomAgent(),
+        GreedyAgent(),
+        HeuristicAgent(),
+        PureMCTSAgent(simulations=mcts_simulations),
+    ]
+    results = [
+        run_match(
+            first,
+            second,
+            games=games,
+            size=size,
+            seed=seed + matchup_index * 10_000,
+        )
+        for matchup_index, (first, second) in enumerate(combinations(agents, 2))
+    ]
+    typer.echo(
+        json.dumps(
+            {
+                "status": "ok",
+                "seed": seed,
+                "size": size,
+                "games_per_matchup": games,
+                "matches": [asdict(result) for result in results],
             },
             indent=2,
         )
