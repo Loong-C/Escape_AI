@@ -23,7 +23,7 @@ from .checkpoint import CheckpointSummary, save_checkpoint
 from .data import ShardSummary, load_training_batch, sha256_file, write_training_shard
 from .learner import LearnerConfig, LearnerMetrics, train_model
 from .model import NetworkConfig, PolicyValueNet
-from .selfplay import SelfPlayConfig, SelfPlayGame, play_self_game
+from .selfplay import SelfPlayConfig, SelfPlayGame, play_self_games
 
 EXPERIMENT_SCHEMA_VERSION = 1
 
@@ -39,6 +39,7 @@ class ExperimentConfig:
     network: NetworkConfig
     self_play: SelfPlayConfig
     learner: LearnerConfig
+    self_play_batch_size: int = 1
     require_clean_worktree: bool = True
 
 
@@ -73,6 +74,9 @@ def load_experiment_config(path: Path) -> ExperimentConfig:
     games_per_shard = int(root["games_per_shard"])
     if games < 1 or games_per_shard < 1:
         raise ValueError("games and games_per_shard must be positive")
+    self_play_batch_size = int(root.get("self_play_batch_size", 1))
+    if self_play_batch_size < 1:
+        raise ValueError("self_play_batch_size must be positive")
     return ExperimentConfig(
         experiment_id=str(root["experiment_id"]),
         lineage=str(root["lineage"]),
@@ -83,6 +87,7 @@ def load_experiment_config(path: Path) -> ExperimentConfig:
         network=network,
         self_play=self_play,
         learner=learner,
+        self_play_batch_size=self_play_batch_size,
         require_clean_worktree=bool(root.get("require_clean_worktree", True)),
     )
 
@@ -133,10 +138,6 @@ def _ensure_new_experiment(paths: Mapping[str, Path], experiment_id: str) -> Non
         raise FileExistsError(f"experiment {experiment_id!r} already has artifacts")
 
 
-def _fixed_game_id(game_id: str) -> Callable[[], str]:
-    return lambda: game_id
-
-
 def run_experiment(
     config_path: Path,
     *,
@@ -163,34 +164,43 @@ def run_experiment(
     started = time.perf_counter()
     shards: list[ShardSummary] = []
     buffered: list[SelfPlayGame] = []
-    for game_index in range(config.games):
-        game_seed = config.seed + game_index
-        game_id = f"{config.experiment_id}-{game_index:08d}"
-        buffered.append(
-            play_self_game(
-                evaluator,
-                config.self_play,
-                seed=game_seed,
-                model_id=f"{config.experiment_id}-initial",
-                game_id_factory=_fixed_game_id(game_id),
+
+    def write_buffered(games_to_write: list[SelfPlayGame]) -> None:
+        shard_index = len(shards)
+        shard_path = paths["replay"] / config.experiment_id / f"shard-{shard_index:05d}.parquet"
+        shards.append(
+            write_training_shard(
+                shard_path,
+                games_to_write,
+                metadata={
+                    "experiment_id": config.experiment_id,
+                    "git_commit": git_commit,
+                    "config_sha256": config_hash,
+                },
             )
         )
-        emit(f"self-play {game_index + 1}/{config.games}")
-        if len(buffered) == config.games_per_shard or game_index + 1 == config.games:
-            shard_index = len(shards)
-            shard_path = paths["replay"] / config.experiment_id / f"shard-{shard_index:05d}.parquet"
-            shards.append(
-                write_training_shard(
-                    shard_path,
-                    buffered,
-                    metadata={
-                        "experiment_id": config.experiment_id,
-                        "git_commit": git_commit,
-                        "config_sha256": config_hash,
-                    },
-                )
+
+    completed_games = 0
+    while completed_games < config.games:
+        wave_size = min(config.self_play_batch_size, config.games - completed_games)
+        indices = list(range(completed_games, completed_games + wave_size))
+        buffered.extend(
+            play_self_games(
+                evaluator,
+                config.self_play,
+                seeds=[config.seed + index for index in indices],
+                model_id=f"{config.experiment_id}-initial",
+                game_ids=[f"{config.experiment_id}-{index:08d}" for index in indices],
             )
-            buffered = []
+        )
+        completed_games += wave_size
+        emit(f"self-play {completed_games}/{config.games}")
+        while len(buffered) >= config.games_per_shard:
+            games_to_write = buffered[: config.games_per_shard]
+            del buffered[: config.games_per_shard]
+            write_buffered(games_to_write)
+    if buffered:
+        write_buffered(buffered)
 
     training_batch = load_training_batch(shard.path for shard in shards)
     optimizer, learner_metrics = train_model(

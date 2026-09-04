@@ -9,7 +9,7 @@ import pytest
 from escape_ai import _escape_core
 from escape_ai.search import UniformEvaluator
 from escape_ai.training.data import load_training_batch, write_training_shard
-from escape_ai.training.selfplay import SelfPlayConfig, play_self_game
+from escape_ai.training.selfplay import SelfPlayConfig, play_self_game, play_self_games
 
 
 def deterministic_id() -> str:
@@ -42,6 +42,19 @@ def test_self_play_labels_and_reproduces() -> None:
         assert position.policy.sum() == pytest.approx(1.0)
         expected = 0.0 if first.winner is None else 1.0 if first.winner == position.turn else -1.0
         assert position.value_target == expected
+
+
+def test_batched_self_play_preserves_game_order_and_seeds() -> None:
+    games = play_self_games(
+        UniformEvaluator(),
+        SelfPlayConfig(board_size=3, simulations=4),
+        seeds=[101, 102, 103],
+        model_id="uniform",
+        game_ids=["a", "b", "c"],
+    )
+    assert [game.game_id for game in games] == ["a", "b", "c"]
+    assert [game.seed for game in games] == [101, 102, 103]
+    assert all(game.plies > 0 for game in games)
 
 
 def test_parquet_shard_round_trips_into_training_arrays(tmp_path: Path) -> None:

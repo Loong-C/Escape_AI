@@ -15,13 +15,9 @@ def encode_state(state: _escape_core.State) -> npt.NDArray[np.float32]:
 
     width = state.size + 1
     planes = np.zeros((INPUT_CHANNELS, width, width), dtype=np.float32)
-    for row in range(width):
-        for col in range(width):
-            post = state.post(row, col)
-            if post == "white":
-                planes[0, row, col] = 1.0
-            elif post == "black":
-                planes[1, row, col] = 1.0
+    posts = np.asarray(state.posts, dtype=object).reshape((width, width))
+    planes[0] = posts == "white"
+    planes[1] = posts == "black"
 
     ball_row, ball_col = state.ball
     # Mark the four post-grid corners of the occupied cell. Unlike a top-left

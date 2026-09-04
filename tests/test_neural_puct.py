@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Sequence
 
 import numpy as np
 import pytest
@@ -9,6 +10,16 @@ import torch
 from escape_ai import _escape_core
 from escape_ai.search import PUCTSearch, TorchEvaluator, UniformEvaluator
 from escape_ai.training import NetworkConfig, PolicyValueNet, encode_state, legal_action_mask
+
+
+class RecordingUniformEvaluator:
+    def __init__(self) -> None:
+        self.batch_sizes: list[int] = []
+        self.inner = UniformEvaluator()
+
+    def evaluate(self, states: Sequence[_escape_core.State]):
+        self.batch_sizes.append(len(states))
+        return self.inner.evaluate(states)
 
 
 def trapping_position() -> _escape_core.State:
@@ -93,8 +104,8 @@ def test_torch_evaluator_masks_illegal_actions() -> None:
     model = PolicyValueNet(NetworkConfig(channels=8, residual_blocks=1, value_hidden=4))
     state = trapping_position()
     result = TorchEvaluator(model, "cpu").evaluate([state])[0]
-    assert set(result.priors) == set(state.legal_actions())
-    assert sum(result.priors.values()) == pytest.approx(1.0)
+    assert np.flatnonzero(result.priors).tolist() == state.legal_actions()
+    assert result.priors.sum() == pytest.approx(1.0)
 
 
 def test_puct_finds_and_values_an_immediate_win() -> None:
@@ -107,3 +118,23 @@ def test_puct_finds_and_values_an_immediate_win() -> None:
     assert winning
     assert max(item.mean_value for item in winning) == 1.0
     assert result.policy.sum() == pytest.approx(1.0)
+
+
+def test_puct_batches_independent_roots() -> None:
+    evaluator = RecordingUniformEvaluator()
+    states = [_escape_core.State(3) for _ in range(4)]
+    rngs = [random.Random(seed) for seed in range(4)]
+    results = PUCTSearch(evaluator, simulations=8, parallel_leaves=4).run_batch(
+        states,
+        rngs,
+        temperatures=[1.0] * 4,
+        add_root_noise=True,
+    )
+    assert evaluator.batch_sizes[0] == 4
+    assert max(evaluator.batch_sizes) == 16
+    assert len(results) == 4
+    assert all(
+        result.action in state.legal_actions()
+        for result, state in zip(results, states, strict=True)
+    )
+    assert all(sum(item.visits for item in result.statistics) == 8 for result in results)

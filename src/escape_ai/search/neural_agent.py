@@ -27,4 +27,10 @@ class NeuralPUCTAgent:
             simulations=self.simulations,
             c_puct=self.c_puct,
         )
-        return search.run(state, rng, temperature=0.0, add_root_noise=False).action
+        return search.run(
+            state,
+            rng,
+            temperature=0.0,
+            add_root_noise=False,
+            include_statistics=False,
+        ).action
