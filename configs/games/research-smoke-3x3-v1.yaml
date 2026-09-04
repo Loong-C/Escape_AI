@@ -1,0 +1,25 @@
+schema_version: 1
+run_id: research-smoke-3x3-v1
+tier: analysis-smoke
+seed: 20260904
+games: 4
+games_per_shard: 2
+actor_batch_size: 2
+device: cuda
+paired_colors: true
+require_clean_worktree: true
+
+white_checkpoint: &checkpoint
+  path: "G:/Escape/_AI/checkpoints/lineage-smoke-3x3-v1/generation-0001.pt"
+  sha256: "3fcc1787f563b5861b8da8a515b1fa00762cf9bb7210e423d7ca8d9ce939c851"
+black_checkpoint: *checkpoint
+
+search:
+  board_size: 3
+  simulations: 32
+  c_puct: 1.5
+  parallel_leaves: 8
+  temperature: 0.0
+  add_root_noise: false
+  top_candidates: 8
+  compute_reply_resistance: true

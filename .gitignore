@@ -12,12 +12,12 @@ dist/
 
 # Machine-local configuration and generated research artifacts.
 configs/local.toml
-artifacts/
-cache/
-checkpoints/
-games/
-replay/
-runs/
+/artifacts/
+/cache/
+/checkpoints/
+/games/
+/replay/
+/runs/
 
 # Editors and operating-system noise.
 .idea/
