@@ -10,6 +10,6 @@ if (-not (Test-Path -LiteralPath $venvPath)) {
 $pythonPath = Join-Path $venvPath "Scripts\python.exe"
 $constraintsPath = Join-Path $repoRoot "requirements\constraints-win-cu128.txt"
 & $pythonPath -m pip install --upgrade pip
-& $pythonPath -m pip install --constraint $constraintsPath -e "$repoRoot[dev,research,server]"
+& $pythonPath -m pip install --constraint $constraintsPath -e "$repoRoot[dev,research,server,openspiel]"
 & $pythonPath -c "from escape_ai.paths import ensure_artifact_layout; print(ensure_artifact_layout())"
 & (Join-Path $PSScriptRoot "build_cpp.ps1")

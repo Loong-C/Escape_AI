@@ -186,8 +186,12 @@ PYBIND11_MODULE(_escape_core, module) {
       .def_static("deserialize", [](const py::bytes& data) {
         return State::Deserialize(static_cast<std::string>(data));
       })
-      .def("transformed", &State::Transformed);
+      .def("transformed", &State::Transformed)
+      .def(py::pickle(
+          [](const State& state) { return py::bytes(state.Serialize()); },
+          [](const py::bytes& data) {
+            return State::Deserialize(static_cast<std::string>(data));
+          }));
 
   module.def("transform_action", &escape_ai::TransformAction);
 }
-

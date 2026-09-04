@@ -178,3 +178,21 @@ def benchmark_baselines(
             indent=2,
         )
     )
+
+
+@app.command("validate-openspiel")
+def validate_openspiel(
+    games: int = typer.Option(20, min=1, help="Games per board size"),
+    sizes: str = typer.Option("3,5,9,17", help="Comma-separated odd board sizes"),
+    seed: int = typer.Option(20260904, help="Deterministic transition seed"),
+) -> None:
+    """Run OpenSpiel API checks and compare its states with the C++ core."""
+
+    from .integrations.openspiel import validate_adapter
+
+    summary = validate_adapter(
+        games_per_size=games,
+        sizes=tuple(int(value.strip()) for value in sizes.split(",")),
+        seed=seed,
+    )
+    typer.echo(json.dumps({"status": "ok", **asdict(summary)}, indent=2))
