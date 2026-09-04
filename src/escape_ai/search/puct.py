@@ -175,8 +175,9 @@ class PUCTSearch:
         for action, edge in root.edges.items():
             visits[action] = edge.visits
             statistics.append(ActionStatistics(action, edge.prior, edge.visits, edge.mean_value))
-        policy = self._visit_policy(visits, temperature)
-        action = self._sample_action(policy, rng)
+        policy = self._visit_policy(visits, 1.0)
+        selection_policy = self._visit_policy(visits, temperature)
+        action = self._sample_action(selection_policy, rng)
         statistics.sort(key=lambda item: (-item.visits, item.action))
         root_value = sum(edge.value_sum for edge in root.edges.values()) / max(root.visits, 1)
         return SearchResult(action, policy, root_value, tuple(statistics))

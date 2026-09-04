@@ -196,3 +196,37 @@ def validate_openspiel(
         seed=seed,
     )
     typer.echo(json.dumps({"status": "ok", **asdict(summary)}, indent=2))
+
+
+@app.command("run-experiment")
+def run_training_experiment(
+    config: str = typer.Option(..., help="Committed YAML experiment configuration"),
+) -> None:
+    """Run a provenance-complete self-play and learner experiment."""
+
+    from pathlib import Path
+
+    from .training.experiment import run_experiment
+
+    repo_root = Path(__file__).resolve().parents[2]
+    result = run_experiment(
+        Path(config),
+        repo_root=repo_root,
+        progress=lambda message: typer.echo(message, err=True),
+    )
+    typer.echo(
+        json.dumps(
+            {
+                "status": "ok",
+                "experiment_id": result.experiment_id,
+                "git_commit": result.git_commit,
+                "games": result.games,
+                "positions": result.positions,
+                "elapsed_seconds": result.elapsed_seconds,
+                "checkpoint": str(result.checkpoint.path),
+                "checkpoint_sha256": result.checkpoint.sha256,
+                "manifest": str(result.manifest),
+            },
+            indent=2,
+        )
+    )
