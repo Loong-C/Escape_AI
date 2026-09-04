@@ -8,7 +8,7 @@ Escape AI 是面向 17 × 17 Escape 抽象策略游戏的计算研究平台。�
 - 规则来源：`F:\Personal\Code\Escape\docs\Rule.md`，冻结副本见 `docs/Rule.md`。
 - 源代码与报告：`F:\Personal\Code\Escape_AI`。
 - 大型产物：`G:\Escape\_AI`。
-- 当前里程碑：规则与实验环境基线。
+- 当前里程碑：Python Reference Engine。
 
 ## 架构边界
 
@@ -26,4 +26,11 @@ Escape AI 是面向 17 × 17 Escape 抽象策略游戏的计算研究平台。�
 pwsh scripts/bootstrap.ps1
 ```
 
-环境验证与测试命令将在参考引擎里程碑中启用。
+运行质量检查与参考引擎随机验证：
+
+```powershell
+.venv\Scripts\python -m ruff check .
+.venv\Scripts\python -m mypy
+.venv\Scripts\python -m pytest
+.venv\Scripts\escape-ai validate --games 20 --sizes 3,5,9,17
+```

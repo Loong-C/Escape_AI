@@ -28,4 +28,3 @@ def ensure_artifact_layout(root: Path | None = None) -> dict[str, Path]:
         path.mkdir(exist_ok=True)
         result[name] = path
     return result
-
