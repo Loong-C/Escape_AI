@@ -4,6 +4,7 @@
 .ruff_cache/
 __pycache__/
 *.py[cod]
+*.pyd
 
 build/
 dist/
@@ -23,4 +24,3 @@ runs/
 .vscode/
 .DS_Store
 Thumbs.db
-

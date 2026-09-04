@@ -94,3 +94,33 @@ def validate(
             indent=2,
         )
     )
+
+
+@app.command()
+def differential(
+    games: int = typer.Option(5, min=1, help="Random games per board size"),
+    sizes: str = typer.Option("3,5,9,17", help="Comma-separated odd board sizes"),
+    seed: int = typer.Option(20260904, help="Deterministic validation seed"),
+) -> None:
+    """Compare Python and C++ engines over complete random games."""
+
+    from .game.differential import run_differential_validation
+
+    summary = run_differential_validation(
+        games_per_size=games,
+        sizes=tuple(int(value.strip()) for value in sizes.split(",")),
+        seed=seed,
+    )
+    typer.echo(
+        json.dumps(
+            {
+                "status": "ok",
+                "seed": summary.seed,
+                "sizes": summary.sizes,
+                "games": summary.games,
+                "states": summary.states,
+                "plies": summary.plies,
+            },
+            indent=2,
+        )
+    )

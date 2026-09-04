@@ -33,4 +33,7 @@ pwsh scripts/bootstrap.ps1
 .venv\Scripts\python -m mypy
 .venv\Scripts\python -m pytest
 .venv\Scripts\escape-ai validate --games 20 --sizes 3,5,9,17
+.venv\Scripts\escape-ai differential --games 20 --sizes 3,5,9,17
 ```
+
+`bootstrap.ps1` 会安装首阶段依赖、建立 `G:\Escape\_AI` 目录并使用 MSVC 2022 构建 C++ 扩展。仅需重新编译时可运行 `pwsh scripts/build_cpp.ps1`。
