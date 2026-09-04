@@ -276,3 +276,22 @@ def run_training_lineage(
         progress=lambda message: typer.echo(message, err=True),
     )
     typer.echo(json.dumps({"status": "ok", **asdict(result)}, indent=2, default=str))
+
+
+@app.command("generate-research-games")
+def generate_research_games(
+    config: str = typer.Option(..., help="Committed YAML research-game configuration"),
+) -> None:
+    """Run or resume analysis-rich checkpoint games."""
+
+    from pathlib import Path
+
+    from .research.runner import run_research_games
+
+    repo_root = Path(__file__).resolve().parents[2]
+    result = run_research_games(
+        Path(config),
+        repo_root=repo_root,
+        progress=lambda message: typer.echo(message, err=True),
+    )
+    typer.echo(json.dumps({"status": "ok", **asdict(result)}, indent=2, default=str))

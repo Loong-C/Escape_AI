@@ -39,6 +39,7 @@ pwsh scripts/bootstrap.ps1
 .venv\Scripts\escape-ai run-experiment --config configs/experiments/az-smoke-3x3.yaml
 .venv\Scripts\escape-ai run-league --config configs/leagues/smoke-3x3-v1.yaml
 .venv\Scripts\escape-ai run-lineage --config configs/lineages/smoke-3x3-v1.yaml
+.venv\Scripts\escape-ai generate-research-games --config configs/games/research-smoke-3x3-v1.yaml
 ```
 
 正式实验只接受已提交配置并要求干净工作树。Parquet replay、checkpoint 和带完整
