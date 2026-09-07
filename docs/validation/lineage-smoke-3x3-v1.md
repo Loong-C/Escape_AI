@@ -15,7 +15,7 @@ with the committed `configs/lineages/smoke-3x3-v1.yaml` configuration.
 - first execution took 3.36 seconds.
 
 The progress manifest is
-`G:\Escape\_AI\runs\lineage-smoke-3x3-v1\progress.json`. A second invocation
+`E:\Escape\_AI\runs\lineage-smoke-3x3-v1\progress.json`. A second invocation
 verified the committed config hash, Git commit, replay manifest, and final
 checkpoint, then returned the completed result in under one millisecond without
 regenerating or overwriting artifacts.

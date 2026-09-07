@@ -26,4 +26,4 @@ evidence about first-player balance. Production conclusions require trained
 cross-play and paired-color games.
 
 The complete machine, config, Git, shard, learner, and checkpoint provenance is
-stored at `G:\Escape\_AI\runs\pilot-17x17-v1\manifest.json`.
+stored at `E:\Escape\_AI\runs\pilot-17x17-v1\manifest.json`.

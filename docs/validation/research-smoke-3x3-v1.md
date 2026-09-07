@@ -30,4 +30,4 @@ high-budget play; formal 10,000-game competition and 1,000-game analysis configs
 must enable that window or provide an explicit opening suite.
 
 The generated analysis is stored at
-`G:\Escape\_AI\runs\research-smoke-3x3-v1\analysis.json`.
+`E:\Escape\_AI\runs\research-smoke-3x3-v1\analysis.json`.

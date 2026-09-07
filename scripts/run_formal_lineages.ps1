@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$artifactRoot = "G:\Escape\_AI"
+$artifactRoot = "E:\Escape\_AI"
 $logRoot = Join-Path $artifactRoot "runs\formal-lineages"
 $python = Join-Path $repoRoot ".venv\Scripts\escape-ai.exe"
 $mutex = [System.Threading.Mutex]::new($false, "Global\EscapeAIFormalLineages")

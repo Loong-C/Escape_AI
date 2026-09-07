@@ -7,7 +7,7 @@ Escape AI 是面向 17 × 17 Escape 抽象策略游戏的计算研究平台。�
 - 正式规则：17 × 17；研究代码同时支持 3–17 的奇数棋盘。
 - 规则来源：`F:\Personal\Code\Escape\docs\Rule.md`，冻结副本见 `docs/Rule.md`。
 - 源代码与报告：`F:\Personal\Code\Escape_AI`。
-- 大型产物：`G:\Escape\_AI`。
+- 大型产物：`E:\Escape\_AI`。
 - 当前里程碑：双规则引擎、验证器、固定基线、OpenSpiel、神经 PUCT、自对弈训练、模型联赛、研究记录/分析器与只读棋谱查看器。
 
 ## 架构边界
@@ -40,7 +40,7 @@ pwsh scripts/bootstrap.ps1
 .venv\Scripts\escape-ai run-league --config configs/leagues/smoke-3x3-v1.yaml
 .venv\Scripts\escape-ai run-lineage --config configs/lineages/smoke-3x3-v1.yaml
 .venv\Scripts\escape-ai generate-research-games --config configs/games/research-smoke-3x3-v1.yaml
-.venv\Scripts\escape-ai analyze-games --input "G:/Escape/_AI/games/research-smoke-3x3-v1" --output "G:/Escape/_AI/runs/research-smoke-3x3-v1/analysis.json"
+.venv\Scripts\escape-ai analyze-games --input "E:/Escape/_AI/games/research-smoke-3x3-v1" --output "E:/Escape/_AI/runs/research-smoke-3x3-v1/analysis.json"
 ```
 
 构建并打开研究棋谱查看器：
@@ -50,14 +50,14 @@ cd viewer
 npm ci
 npm run build
 cd ..
-.venv\Scripts\escape-ai serve-viewer --games "G:/Escape/_AI/games/research-smoke-3x3-v1"
+.venv\Scripts\escape-ai serve-viewer --games "E:/Escape/_AI/games/research-smoke-3x3-v1"
 ```
 
 随后访问 `http://127.0.0.1:8765`。查看器支持候选着访问分布、Q 值、方向距离、
 结构特征、战术标签、首尾局面与键盘时间轴；它不会修改棋谱或重新执行规则。
 
 正式实验只接受已提交配置并要求干净工作树。Parquet replay、checkpoint 和带完整
-Git/配置/数据/模型哈希的 manifest 会原子写入 `G:\Escape\_AI`。
+Git/配置/数据/模型哈希的 manifest 会原子写入 `E:\Escape\_AI`。
 
 `configs/lineages/lineage-{a,b,c}-17x17-v1.yaml` 定义了三条互相独立的
 100,000 局正式谱系。每个 Parquet shard 都会更新恢复点；中断后只从已确认的
@@ -70,7 +70,7 @@ pwsh scripts/run_formal_lineages.ps1
 ```
 
 启动器使用全局互斥锁避免重复生产，并将日志和完成标记写入
-`G:\Escape\_AI\runs\formal-lineages`。训练期间不得改变工作树或 HEAD；各谱系会
+`E:\Escape\_AI\runs\formal-lineages`。训练期间不得改变工作树或 HEAD；各谱系会
 在 shard 边界原子保存恢复点。
 
-`bootstrap.ps1` 会安装首阶段依赖、建立 `G:\Escape\_AI` 目录并使用 MSVC 2022 构建 C++ 扩展。仅需重新编译时可运行 `pwsh scripts/build_cpp.ps1`。
+`bootstrap.ps1` 会安装首阶段依赖、建立 `E:\Escape\_AI` 目录并使用 MSVC 2022 构建 C++ 扩展。仅需重新编译时可运行 `pwsh scripts/build_cpp.ps1`。

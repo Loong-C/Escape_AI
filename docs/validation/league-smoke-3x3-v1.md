@@ -21,7 +21,7 @@ games. Scores count a draw as one half-point.
 | heuristic | pure MCTS | 0-3-5 | 31.25% | 10.24%-64.42% |
 
 The machine-readable result is at
-`G:\Escape\_AI\runs\league-smoke-3x3-v1\league.json`. No confidence interval
+`E:\Escape\_AI\runs\league-smoke-3x3-v1\league.json`. No confidence interval
 for the neural checkpoint clears a 50% promotion threshold. The result therefore
 validates cross-play, color pairing, uncertainty reporting, and model loading; it
 does not claim meaningful trained strength from four self-play games.

@@ -10,7 +10,7 @@ paired_colors: true
 require_clean_worktree: true
 
 white_checkpoint: &checkpoint
-  path: "G:/Escape/_AI/checkpoints/lineage-smoke-3x3-v1/generation-0001.pt"
+  path: "E:/Escape/_AI/checkpoints/lineage-smoke-3x3-v1/generation-0001.pt"
   sha256: "3fcc1787f563b5861b8da8a515b1fa00762cf9bb7210e423d7ca8d9ce939c851"
 black_checkpoint: *checkpoint
 

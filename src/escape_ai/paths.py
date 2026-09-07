@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 ARTIFACT_ROOT_ENV = "ESCAPE_AI_ARTIFACT_ROOT"
-DEFAULT_ARTIFACT_ROOT = Path("G:/Escape/_AI")
+DEFAULT_ARTIFACT_ROOT = Path("E:/Escape/_AI")
 ARTIFACT_SUBDIRECTORIES = ("cache", "checkpoints", "games", "replay", "runs")
 DEFAULT_MAXIMUM_BYTES = 400 * 1024**3
 DEFAULT_MINIMUM_FREE_BYTES = 80 * 1024**3

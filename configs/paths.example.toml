@@ -1,3 +1,2 @@
 # Copy to configs/local.toml only when this machine needs an override.
-artifact_root = "G:/Escape/_AI"
-
+artifact_root = "E:/Escape/_AI"

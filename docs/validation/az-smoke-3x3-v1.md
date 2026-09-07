@@ -14,7 +14,7 @@ with the committed `configs/experiments/az-smoke-3x3.yaml` configuration.
 - mean value loss: 0.29679;
 - elapsed time: 5.51 seconds.
 
-Artifacts are outside Git under `G:\Escape\_AI`:
+Artifacts are outside Git under `E:\Escape\_AI`:
 
 - replay shard 0: 32 positions, SHA-256
   `ad96930dda1e82f4c63b39afb91cf9f9d998c6dd5b2722ced0f2029ba22f08c6`;
@@ -23,7 +23,7 @@ Artifacts are outside Git under `G:\Escape\_AI`:
 - checkpoint: 738,181 bytes, SHA-256
   `f024480c870569ddf16325f57bbec8e94b5f385c91b4975aaefc0b4e26f10877`;
 - full machine-readable manifest:
-  `G:\Escape\_AI\runs\az-smoke-3x3-v1\manifest.json`.
+  `E:\Escape\_AI\runs\az-smoke-3x3-v1\manifest.json`.
 
 DuckDB read both Parquet shards as four distinct games and 60 rows. The saved
 checkpoint was reloaded with the restricted weights-only loader and produced a
