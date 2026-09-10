@@ -259,6 +259,25 @@ def run_model_league(
     )
 
 
+@app.command("run-champion-league")
+def run_champion_model_league(
+    config: str = typer.Option(..., help="Committed YAML championship configuration"),
+) -> None:
+    """Run or resume an exact-budget color-paired neural championship."""
+
+    from pathlib import Path
+
+    from .evaluation.championship import run_champion_league
+
+    repo_root = Path(__file__).resolve().parents[2]
+    result = run_champion_league(
+        Path(config),
+        repo_root=repo_root,
+        progress=lambda message: typer.echo(message, err=True),
+    )
+    typer.echo(json.dumps({"status": "ok", **asdict(result)}, indent=2, default=str))
+
+
 @app.command("run-lineage")
 def run_training_lineage(
     config: str = typer.Option(..., help="Committed YAML lineage configuration"),

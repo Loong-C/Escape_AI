@@ -1,0 +1,26 @@
+schema_version: 1
+league_id: champion-league-17x17-v1
+seed: 20260911
+board_size: 17
+total_games: 10000
+games_per_shard: 100
+actor_batch_size: 64
+simulations: 128
+parallel_leaves: 16
+c_puct: 1.5
+opening_temperature: 0.8
+opening_plies: 16
+add_root_noise: false
+device: cuda
+require_clean_worktree: true
+
+entrants:
+  - agent_id: lineage-a-final
+    path: "E:/Escape/_AI/checkpoints/lineage-a-17x17-v1/generation-0199.pt"
+    sha256: "3643839d6fe8fde2bf2b98051e87e81d902328a19cf92305b642224e78062aa0"
+  - agent_id: lineage-b-final
+    path: "E:/Escape/_AI/checkpoints/lineage-b-17x17-v1/generation-0199.pt"
+    sha256: "7e2eb398d2d60c2b3a3298dbc7bfffd5529284d07502151c71633f1bc38be705"
+  - agent_id: lineage-c-final
+    path: "E:/Escape/_AI/checkpoints/lineage-c-17x17-v1/generation-0199.pt"
+    sha256: "0257bbee5f97e0c163ecf64eb50160fd8f8b6189b6ac042fd52dced3b0449bf3"

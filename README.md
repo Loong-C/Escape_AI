@@ -38,6 +38,7 @@ pwsh scripts/bootstrap.ps1
 .venv\Scripts\escape-ai benchmark-baselines --games 4 --size 3
 .venv\Scripts\escape-ai run-experiment --config configs/experiments/az-smoke-3x3.yaml
 .venv\Scripts\escape-ai run-league --config configs/leagues/smoke-3x3-v1.yaml
+.venv\Scripts\escape-ai run-champion-league --config configs/leagues/champion-17x17-v1.yaml
 .venv\Scripts\escape-ai run-lineage --config configs/lineages/smoke-3x3-v1.yaml
 .venv\Scripts\escape-ai generate-research-games --config configs/games/research-smoke-3x3-v1.yaml
 .venv\Scripts\escape-ai analyze-games --input "E:/Escape/_AI/games/research-smoke-3x3-v1" --output "E:/Escape/_AI/runs/research-smoke-3x3-v1/analysis.json"
@@ -72,5 +73,13 @@ pwsh scripts/run_formal_lineages.ps1
 启动器使用全局互斥锁避免重复生产，并将日志和完成标记写入
 `E:\Escape\_AI\runs\formal-lineages`。训练期间不得改变工作树或 HEAD；各谱系会
 在 shard 边界原子保存恢复点。
+
+三条正式谱系完成后，`configs/leagues/champion-17x17-v1.yaml` 以两倍训练搜索
+预算运行 10,000 局交换颜色的决赛循环赛。比赛在 100 局边界原子保存，可用以下
+启动器安全恢复：
+
+```powershell
+pwsh scripts/run_champion_league.ps1
+```
 
 `bootstrap.ps1` 会安装首阶段依赖、建立 `E:\Escape\_AI` 目录并使用 MSVC 2022 构建 C++ 扩展。仅需重新编译时可运行 `pwsh scripts/build_cpp.ps1`。
