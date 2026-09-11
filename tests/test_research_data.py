@@ -54,6 +54,14 @@ def test_research_games_write_queryable_parquet(tmp_path: Path) -> None:
     assert analysis["overview"]["games"] == 2
     assert analysis["overview"]["moves"] == summary.moves
     assert analysis["openings"]["canonical_distinct"] >= 1
+    assert analysis["openings"]["prefixes"]["1"]["games"] == 2
+    assert (
+        analysis["first_ball_move"]["ply_distribution"]["count"]
+        + analysis["first_ball_move"]["games_without_movement"]
+        == 2
+    )
+    assert set(analysis["phases"]) >= {"opening"}
+    assert analysis["candidate_value_gaps"]["positions"] > 0
     assert analysis_path.is_file()
 
     directory_analysis = analyze_research_games(str(tmp_path), tmp_path / "directory.json")

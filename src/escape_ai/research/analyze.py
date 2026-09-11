@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import statistics
 import uuid
 from collections import Counter
 from collections.abc import Mapping
@@ -13,6 +14,18 @@ from pathlib import Path
 import duckdb
 
 from escape_ai import _escape_core
+
+_SYMMETRIES = (
+    _escape_core.Symmetry.IDENTITY,
+    _escape_core.Symmetry.ROTATE_90,
+    _escape_core.Symmetry.ROTATE_180,
+    _escape_core.Symmetry.ROTATE_270,
+    _escape_core.Symmetry.FLIP_HORIZONTAL,
+    _escape_core.Symmetry.FLIP_VERTICAL,
+    _escape_core.Symmetry.DIAGONAL_MAIN,
+    _escape_core.Symmetry.DIAGONAL_ANTI,
+)
+_OPENING_DEPTHS = (1, 3, 5, 10, 20)
 
 
 def _atomic_json(path: Path, value: Mapping[str, object]) -> None:
@@ -28,23 +41,61 @@ def _atomic_json(path: Path, value: Mapping[str, object]) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def _entropy(counts: Counter[int]) -> float:
+def _entropy[CounterKey](counts: Mapping[CounterKey, int]) -> float:
     total = sum(counts.values())
     return -sum((count / total) * math.log(count / total) for count in counts.values() if count)
 
 
 def _canonical_action(action: int, size: int) -> int:
-    symmetries = (
-        _escape_core.Symmetry.IDENTITY,
-        _escape_core.Symmetry.ROTATE_90,
-        _escape_core.Symmetry.ROTATE_180,
-        _escape_core.Symmetry.ROTATE_270,
-        _escape_core.Symmetry.FLIP_HORIZONTAL,
-        _escape_core.Symmetry.FLIP_VERTICAL,
-        _escape_core.Symmetry.DIAGONAL_MAIN,
-        _escape_core.Symmetry.DIAGONAL_ANTI,
+    return min(_escape_core.transform_action(action, size, symmetry) for symmetry in _SYMMETRIES)
+
+
+def _canonical_sequence(actions: tuple[int, ...], size: int) -> tuple[int, ...]:
+    return min(
+        tuple(_escape_core.transform_action(action, size, symmetry) for action in actions)
+        for symmetry in _SYMMETRIES
     )
-    return min(_escape_core.transform_action(action, size, symmetry) for symmetry in symmetries)
+
+
+def _distribution(values: list[int]) -> dict[str, object]:
+    if not values:
+        return {"count": 0, "mean": None, "median": None, "minimum": None, "maximum": None}
+    counts = Counter(values)
+    return {
+        "count": len(values),
+        "mean": statistics.mean(values),
+        "median": statistics.median(values),
+        "minimum": min(values),
+        "maximum": max(values),
+        "counts": dict(sorted(counts.items())),
+    }
+
+
+def _opening_prefix_summary(
+    games: list[tuple[int, tuple[int, ...]]],
+) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for depth in _OPENING_DEPTHS:
+        raw: Counter[tuple[int, ...]] = Counter()
+        canonical: Counter[tuple[int, ...]] = Counter()
+        for size, actions in games:
+            if len(actions) < depth:
+                continue
+            prefix = actions[:depth]
+            raw[prefix] += 1
+            canonical[_canonical_sequence(prefix, size)] += 1
+        result[str(depth)] = {
+            "games": sum(raw.values()),
+            "raw_distinct": len(raw),
+            "canonical_distinct": len(canonical),
+            "raw_entropy": _entropy(raw),
+            "canonical_entropy": _entropy(canonical),
+            "top_canonical": [
+                {"actions": list(actions), "games": count}
+                for actions, count in canonical.most_common(20)
+            ],
+        }
+    return result
 
 
 def analyze_research_games(input_glob: str, output: Path) -> dict[str, object]:
@@ -104,6 +155,125 @@ def analyze_research_games(input_glob: str, output: Path) -> dict[str, object]:
     for action, board_size, games in opening_rows:
         raw_openings[int(action)] += int(games)
         canonical_openings[_canonical_action(int(action), int(board_size))] += int(games)
+
+    game_rows = connection.execute(
+        """
+        SELECT game_id, any_value(board_size) board_size,
+               list(action ORDER BY ply) actions,
+               any_value(winner) winner, any_value(reason) reason,
+               min(ply) FILTER (WHERE ball_moved) first_ball_move,
+               count(*) FILTER (WHERE ball_moved) ball_moves,
+               count(*) FILTER (WHERE move_kind = 'replace') replacements
+        FROM read_parquet(?)
+        GROUP BY game_id ORDER BY game_id
+        """,
+        [source],
+    ).fetchall()
+    opening_games = [
+        (int(row[1]), tuple(int(action) for action in row[2])) for row in game_rows
+    ]
+    first_ball_moves = [int(row[5]) + 1 for row in game_rows if row[5] is not None]
+    ball_moves_per_game = [int(row[6]) for row in game_rows]
+    replacements_per_game = [int(row[7]) for row in game_rows]
+    termination_reasons = Counter(str(row[4]) for row in game_rows)
+
+    phase_rows = connection.execute(
+        """
+        SELECT CASE WHEN ply < 20 THEN 'opening'
+                    WHEN ply < 80 THEN 'middlegame'
+                    ELSE 'late' END phase,
+               count(*) moves, avg(policy_entropy) mean_policy_entropy,
+               avg(legal_actions) mean_legal_actions,
+               avg(abs(root_value)) mean_absolute_root_value,
+               count(*) FILTER (WHERE move_kind = 'replace') replacements,
+               count(*) FILTER (WHERE ball_moved) ball_moves,
+               count(*) FILTER (WHERE reply_resistance <= 1) forcing_moves
+        FROM read_parquet(?) GROUP BY phase
+        """,
+        [source],
+    ).fetchall()
+    phase_names = (
+        "phase",
+        "moves",
+        "mean_policy_entropy",
+        "mean_legal_actions",
+        "mean_absolute_root_value",
+        "replacements",
+        "ball_moves",
+        "forcing_moves",
+    )
+    phases = {
+        str(row[0]): {name: value for name, value in zip(phase_names[1:], row[1:], strict=True)}
+        for row in phase_rows
+    }
+
+    first_move_structure = connection.execute(
+        """
+        WITH moved AS (
+          SELECT *, row_number() OVER (PARTITION BY game_id ORDER BY ply) move_rank
+          FROM read_parquet(?) WHERE ball_moved
+        )
+        SELECT count(*), avg(ply + 1),
+               avg(white_floating + black_floating),
+               avg(white_anchored + black_anchored),
+               avg(white_walls + black_walls),
+               avg(legal_actions)
+        FROM moved WHERE move_rank = 1
+        """,
+        [source],
+    ).fetchone()
+    assert first_move_structure is not None
+
+    direction_rows = connection.execute(
+        """
+        SELECT ball_move_direction, count(*)
+        FROM read_parquet(?) WHERE ball_moved
+        GROUP BY ball_move_direction ORDER BY ball_move_direction
+        """,
+        [source],
+    ).fetchall()
+    ball_move_directions = {str(direction): int(count) for direction, count in direction_rows}
+
+    matchup_rows = connection.execute(
+        """
+        SELECT white_model_id, black_model_id, count(DISTINCT game_id),
+               count(DISTINCT game_id) FILTER (WHERE winner = 'white'),
+               count(DISTINCT game_id) FILTER (WHERE winner = 'black'),
+               count(DISTINCT game_id) FILTER (WHERE winner IS NULL)
+        FROM read_parquet(?) GROUP BY white_model_id, black_model_id
+        ORDER BY white_model_id, black_model_id
+        """,
+        [source],
+    ).fetchall()
+    model_matchups = [
+        {
+            "white_model_id": str(row[0]),
+            "black_model_id": str(row[1]),
+            "games": int(row[2]),
+            "white_wins": int(row[3]),
+            "black_wins": int(row[4]),
+            "draws": int(row[5]),
+        }
+        for row in matchup_rows
+    ]
+
+    candidate_value_rows = connection.execute(
+        """
+        SELECT candidate_values
+        FROM read_parquet(?) WHERE len(candidate_values) >= 2
+        """,
+        [source],
+    ).fetchall()
+    candidate_value_gaps = [
+        abs(float(row[0][0]) - float(row[0][1])) for row in candidate_value_rows
+    ]
+    candidate_gap_summary: dict[str, object] = {
+        "positions": len(candidate_value_gaps),
+        "mean": statistics.mean(candidate_value_gaps) if candidate_value_gaps else None,
+        "median": statistics.median(candidate_value_gaps) if candidate_value_gaps else None,
+        "at_least_0_25": sum(value >= 0.25 for value in candidate_value_gaps),
+        "at_least_0_50": sum(value >= 0.50 for value in candidate_value_gaps),
+    }
 
     candidate_rows = connection.execute(
         """
@@ -167,6 +337,7 @@ def analyze_research_games(input_glob: str, output: Path) -> dict[str, object]:
             "white_wins": int(overview_row[6]),
             "black_wins": int(overview_row[7]),
             "draws": int(overview_row[8]),
+            "termination_reasons": dict(termination_reasons),
         },
         "moves": {
             "mean_policy_entropy": float(move_row[0]),
@@ -177,6 +348,9 @@ def analyze_research_games(input_glob: str, output: Path) -> dict[str, object]:
             "reply_resistance_zero": int(move_row[5]),
             "reply_resistance_one": int(move_row[6]),
             "distinct_models": int(move_row[7]),
+            "ball_move_directions": ball_move_directions,
+            "ball_moves_per_game": _distribution(ball_moves_per_game),
+            "replacements_per_game": _distribution(replacements_per_game),
         },
         "openings": {
             "raw_distinct": len(raw_openings),
@@ -185,7 +359,43 @@ def analyze_research_games(input_glob: str, output: Path) -> dict[str, object]:
             "canonical_entropy": _entropy(canonical_openings),
             "raw_counts": dict(raw_openings),
             "canonical_counts": dict(canonical_openings),
+            "prefixes": _opening_prefix_summary(opening_games),
         },
+        "first_ball_move": {
+            "ply_distribution": _distribution(first_ball_moves),
+            "games_without_movement": len(game_rows) - len(first_ball_moves),
+            "structure": {
+                "games": int(first_move_structure[0]),
+                "mean_ply": (
+                    float(first_move_structure[1])
+                    if first_move_structure[1] is not None
+                    else None
+                ),
+                "mean_floating_posts": (
+                    float(first_move_structure[2])
+                    if first_move_structure[2] is not None
+                    else None
+                ),
+                "mean_anchored_posts": (
+                    float(first_move_structure[3])
+                    if first_move_structure[3] is not None
+                    else None
+                ),
+                "mean_walls": (
+                    float(first_move_structure[4])
+                    if first_move_structure[4] is not None
+                    else None
+                ),
+                "mean_legal_actions": (
+                    float(first_move_structure[5])
+                    if first_move_structure[5] is not None
+                    else None
+                ),
+            },
+        },
+        "phases": phases,
+        "model_matchups": model_matchups,
+        "candidate_value_gaps": candidate_gap_summary,
         "tactical_candidates": candidates,
     }
     _atomic_json(output, result)

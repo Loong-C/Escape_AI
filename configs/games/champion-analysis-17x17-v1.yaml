@@ -1,0 +1,27 @@
+schema_version: 1
+run_id: champion-analysis-17x17-v1
+tier: analysis
+seed: 20260912
+games: 1000
+games_per_shard: 20
+actor_batch_size: 20
+device: cuda
+paired_colors: true
+require_clean_worktree: true
+
+white_checkpoint: &champion
+  path: "E:/Escape/_AI/checkpoints/lineage-c-17x17-v1/generation-0199.pt"
+  sha256: "0257bbee5f97e0c163ecf64eb50160fd8f8b6189b6ac042fd52dced3b0449bf3"
+black_checkpoint: *champion
+
+search:
+  board_size: 17
+  simulations: 512
+  c_puct: 1.5
+  parallel_leaves: 16
+  temperature: 0.0
+  opening_temperature: 0.8
+  opening_plies: 20
+  add_root_noise: false
+  top_candidates: 16
+  compute_reply_resistance: true

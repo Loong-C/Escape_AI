@@ -82,4 +82,11 @@ pwsh scripts/run_formal_lineages.ps1
 pwsh scripts/run_champion_league.ps1
 ```
 
+联赛选出的冠军 checkpoint 会锁定在 1,000 局分析级配置中。该配置使用 512 次
+PUCT 模拟并保存完整的逐手搜索与结构特征，可通过以下启动器生成和汇总：
+
+```powershell
+pwsh scripts/run_champion_analysis.ps1
+```
+
 `bootstrap.ps1` 会安装首阶段依赖、建立 `E:\Escape\_AI` 目录并使用 MSVC 2022 构建 C++ 扩展。仅需重新编译时可运行 `pwsh scripts/build_cpp.ps1`。
