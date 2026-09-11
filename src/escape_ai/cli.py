@@ -350,6 +350,25 @@ def run_saved_position_tactical_audit(
     typer.echo(json.dumps({"status": "ok", **asdict(result)}, indent=2, default=str))
 
 
+@app.command("run-symmetry-audit")
+def run_checkpoint_symmetry_audit(
+    config: str = typer.Option(..., help="Committed YAML symmetry-audit configuration"),
+) -> None:
+    """Measure role-aware neural and PUCT equivariance on saved positions."""
+
+    from pathlib import Path
+
+    from .research.symmetry_audit import run_symmetry_audit
+
+    repo_root = Path(__file__).resolve().parents[2]
+    result = run_symmetry_audit(
+        Path(config),
+        repo_root=repo_root,
+        progress=lambda message: typer.echo(message, err=True),
+    )
+    typer.echo(json.dumps({"status": "ok", **asdict(result)}, indent=2, default=str))
+
+
 @app.command("serve-viewer")
 def serve_viewer(
     games: str = typer.Option(..., help="Research Parquet directory or glob"),
