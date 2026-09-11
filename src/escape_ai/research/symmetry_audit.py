@@ -20,14 +20,22 @@ import yaml  # type: ignore[import-untyped]
 
 from escape_ai import _escape_core
 from escape_ai.paths import ensure_artifact_layout, require_artifact_capacity
-from escape_ai.search import Evaluation, PositionEvaluator, PUCTSearch, SearchResult, TorchEvaluator
+from escape_ai.search import (
+    D4SymmetryEnsembleEvaluator,
+    Evaluation,
+    PositionEvaluator,
+    PUCTSearch,
+    SearchResult,
+    TorchEvaluator,
+)
 from escape_ai.training.checkpoint import load_checkpoint
 from escape_ai.training.data import sha256_file
 
 from .runner import ModelReference
 from .tactical import SourceReference, _atomic_json, _git, _hardware, _validate_source
 
-SYMMETRY_AUDIT_SCHEMA_VERSION = 1
+SYMMETRY_AUDIT_CONFIG_SCHEMA_VERSION = 1
+SYMMETRY_AUDIT_RESULT_SCHEMA_VERSION = 2
 
 _SYMMETRIES = (
     _escape_core.Symmetry.IDENTITY,
@@ -65,8 +73,14 @@ class DecisionThresholds:
     maximum_neural_p95_policy_l1: float
     minimum_neural_top1_agreement: float
     minimum_neural_top5_overlap: float
-    minimum_search_selected_agreement: float
+    minimum_search_selected_action_agreement: float
     minimum_search_top5_overlap: float
+
+
+@dataclass(frozen=True, slots=True)
+class EvaluatorAuditConfig:
+    kind: str
+    maximum_batch_size: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +93,7 @@ class SymmetryAuditConfig:
     require_clean_worktree: bool
     source: SourceReference
     checkpoint: ModelReference
+    evaluator: EvaluatorAuditConfig
     search: SearchAuditConfig
     decision_thresholds: DecisionThresholds
 
@@ -121,7 +136,8 @@ class SearchMetric:
     root_value_absolute_error: float
     policy_l1: float
     policy_js: float
-    selected_agreement: bool
+    selected_action_agreement: bool
+    visit_policy_top1_agreement: bool
     base_selected_rank_in_transformed: int
     transformed_selected_rank_in_base: int
     top5_overlap: float
@@ -144,17 +160,19 @@ def _mapping(value: object, label: str) -> Mapping[str, Any]:
 
 def load_symmetry_audit_config(path: Path) -> SymmetryAuditConfig:
     raw = _mapping(yaml.safe_load(path.read_text(encoding="utf-8")), "symmetry audit")
-    if raw.get("schema_version") != SYMMETRY_AUDIT_SCHEMA_VERSION:
+    if raw.get("schema_version") != SYMMETRY_AUDIT_CONFIG_SCHEMA_VERSION:
         raise ValueError("unsupported symmetry-audit configuration schema")
     source = _mapping(raw["source"], "source")
     checkpoint = _mapping(raw["checkpoint"], "checkpoint")
     search = _mapping(raw["search"], "search")
     thresholds = _mapping(raw["decision_thresholds"], "decision thresholds")
+    evaluator = _mapping(raw.get("evaluator", {}), "evaluator")
+    inference_batch_size = int(raw["inference_batch_size"])
     config = SymmetryAuditConfig(
         run_id=str(raw["run_id"]),
         seed=int(raw["seed"]),
         device=str(raw.get("device", "cuda")),
-        inference_batch_size=int(raw["inference_batch_size"]),
+        inference_batch_size=inference_batch_size,
         samples_per_stratum=int(raw["samples_per_stratum"]),
         require_clean_worktree=bool(raw.get("require_clean_worktree", True)),
         source=SourceReference(
@@ -163,6 +181,12 @@ def load_symmetry_audit_config(path: Path) -> SymmetryAuditConfig:
             manifest_sha256=str(source["manifest_sha256"]),
         ),
         checkpoint=ModelReference(Path(str(checkpoint["path"])), str(checkpoint["sha256"])),
+        evaluator=EvaluatorAuditConfig(
+            kind=str(evaluator.get("kind", "raw")),
+            maximum_batch_size=int(
+                evaluator.get("maximum_batch_size", inference_batch_size)
+            ),
+        ),
         search=SearchAuditConfig(
             samples_per_stratum=int(search["samples_per_stratum"]),
             simulations=int(search["simulations"]),
@@ -182,8 +206,14 @@ def load_symmetry_audit_config(path: Path) -> SymmetryAuditConfig:
             minimum_neural_top5_overlap=float(
                 thresholds["minimum_neural_top5_overlap"]
             ),
-            minimum_search_selected_agreement=float(
-                thresholds["minimum_search_selected_agreement"]
+            minimum_search_selected_action_agreement=float(
+                thresholds[
+                    (
+                        "minimum_search_selected_action_agreement"
+                        if "minimum_search_selected_action_agreement" in thresholds
+                        else "minimum_search_selected_agreement"
+                    )
+                ]
             ),
             minimum_search_top5_overlap=float(
                 thresholds["minimum_search_top5_overlap"]
@@ -196,14 +226,28 @@ def load_symmetry_audit_config(path: Path) -> SymmetryAuditConfig:
         config.search.samples_per_stratum,
         config.search.simulations,
         config.search.parallel_leaves,
+        config.evaluator.maximum_batch_size,
     )
     if not config.run_id or min(counts) < 1 or config.search.c_puct <= 0.0:
         raise ValueError("symmetry-audit counts and search constants must be positive")
     if config.search.samples_per_stratum > config.samples_per_stratum:
         raise ValueError("search sample count cannot exceed inference sample count")
-    threshold_values = asdict(config.decision_thresholds)
-    if any(not 0.0 <= value <= 1.0 for value in threshold_values.values()):
-        raise ValueError("symmetry decision thresholds must be between zero and one")
+    if config.evaluator.kind not in {"raw", "d4-ensemble"}:
+        raise ValueError(f"unsupported symmetry-audit evaluator: {config.evaluator.kind}")
+    maximum_thresholds = (
+        config.decision_thresholds.maximum_neural_p95_value_error,
+        config.decision_thresholds.maximum_neural_p95_policy_l1,
+    )
+    minimum_thresholds = (
+        config.decision_thresholds.minimum_neural_top1_agreement,
+        config.decision_thresholds.minimum_neural_top5_overlap,
+        config.decision_thresholds.minimum_search_selected_action_agreement,
+        config.decision_thresholds.minimum_search_top5_overlap,
+    )
+    if any(not 0.0 <= value <= 2.0 for value in maximum_thresholds) or any(
+        not 0.0 <= value <= 1.0 for value in minimum_thresholds
+    ):
+        raise ValueError("symmetry decision thresholds are outside metric ranges")
     return config
 
 
@@ -414,7 +458,12 @@ def _search_summary(records: Sequence[SearchMetric]) -> dict[str, object]:
         ),
         "policy_l1": _float_distribution([item.policy_l1 for item in records]),
         "policy_js": _float_distribution([item.policy_js for item in records]),
-        "selected_agreement": statistics.mean(item.selected_agreement for item in records),
+        "selected_action_agreement": statistics.mean(
+            item.selected_action_agreement for item in records
+        ),
+        "visit_policy_top1_agreement": statistics.mean(
+            item.visit_policy_top1_agreement for item in records
+        ),
         "mean_base_selected_rank_in_transformed": statistics.mean(
             item.base_selected_rank_in_transformed for item in records
         ),
@@ -475,10 +524,10 @@ def _decision(
             "minimum",
             thresholds.minimum_neural_top5_overlap,
         ),
-        "search_selected_agreement": (
-            float(search_overall["selected_agreement"]),
+        "search_selected_action_agreement": (
+            float(search_overall["selected_action_agreement"]),
             "minimum",
-            thresholds.minimum_search_selected_agreement,
+            thresholds.minimum_search_selected_action_agreement,
         ),
         "search_mean_top5_overlap": (
             float(search_overall["mean_top5_overlap"]),
@@ -594,7 +643,7 @@ def _search_audit(
             transformed = results[offset]
             transformed_ranks = _rank_by_action(transformed)
             mapped = _mapped_policy(sample.state, transformed.policy, symmetry)
-            l1, js, selected_agreement, top5 = _policy_metrics(
+            l1, js, visit_policy_top1_agreement, top5 = _policy_metrics(
                 sample.state, base.policy, mapped
             )
             action_map = {
@@ -614,7 +663,8 @@ def _search_audit(
                     abs(base.root_value - transformed.root_value),
                     l1,
                     js,
-                    selected_agreement,
+                    base.action == mapped_selected,
+                    visit_policy_top1_agreement,
                     transformed_ranks[
                         _escape_core.transform_action(base.action, sample.state.size, symmetry)
                     ],
@@ -656,7 +706,15 @@ def run_symmetry_audit(
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(config.seed)
     model, _ = load_checkpoint(config.checkpoint.path, device=config.device)
-    evaluator = TorchEvaluator(model, config.device)
+    base_evaluator = TorchEvaluator(model, config.device)
+    evaluator: PositionEvaluator = (
+        D4SymmetryEnsembleEvaluator(
+            base_evaluator,
+            maximum_batch_size=config.evaluator.maximum_batch_size,
+        )
+        if config.evaluator.kind == "d4-ensemble"
+        else base_evaluator
+    )
     samples = _load_samples(
         config.source.parquet,
         config.samples_per_stratum,
@@ -679,7 +737,7 @@ def run_symmetry_audit(
     decision = _decision(neural_summary, search_summary, config.decision_thresholds)
     elapsed = time.perf_counter() - started
     result: dict[str, object] = {
-        "schema_version": SYMMETRY_AUDIT_SCHEMA_VERSION,
+        "schema_version": SYMMETRY_AUDIT_RESULT_SCHEMA_VERSION,
         "run_id": config.run_id,
         "git_commit": git_commit,
         "config_path": str(config_path.resolve()),
@@ -698,6 +756,7 @@ def run_symmetry_audit(
             "sha256": config.checkpoint.sha256,
             "model_id": config.checkpoint.model_id,
         },
+        "evaluator": asdict(config.evaluator),
         "sampling": {
             "samples_per_stratum": config.samples_per_stratum,
             "strata": [f"{phase}/{turn}" for phase in _PHASES for turn in _TURNS],

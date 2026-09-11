@@ -50,7 +50,7 @@ non-identity PUCT comparisons across 24 roots.
 | neural p95 policy L1 | <= 0.25 | 1.385 | no |
 | neural top-1 agreement | >= 80% | 12.00% | no |
 | neural mean top-5 overlap | >= 90% | 22.59% | no |
-| PUCT selected-action agreement | >= 60% | 8.33% | no |
+| PUCT visit-policy top-1 agreement | >= 60% | 8.33% | no |
 | PUCT mean top-5 overlap | >= 75% | 14.52% | no |
 
 The result is not a marginal threshold miss. Policy L1 has range `[0, 2]`, and
@@ -110,3 +110,15 @@ the Black-first matched-seed diagnostic and further strategy-diversity work.
 - Finite-budget PUCT includes deterministic action-index tie breaking. That can
   lower exact agreement for close actions, but cannot explain the independently
   observed value and prior-policy discrepancies.
+
+### Metric-label correction
+
+A subsequent implementation review found that the 8.33% field named
+`selected_agreement` in the schema-v1 result compares the top-visited action
+after mapping both visit distributions into the source coordinates. It does not
+compare the two coordinate-local deterministic actions returned after numeric
+action-index tie breaking. The corrected schema records both quantities
+separately. This labeling correction does not weaken the raw-checkpoint finding:
+the visit distributions themselves have mean L1 1.345, their top-5 overlap is
+14.52%, and all independent neural criteria fail by large margins. A corrected
+raw audit will be run alongside the ensemble audit for direct comparison.

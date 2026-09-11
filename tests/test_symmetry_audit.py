@@ -68,9 +68,30 @@ def test_committed_symmetry_audit_locks_sampling_and_search_budget() -> None:
 
     assert config.run_id == "champion-symmetry-audit-17x17-v1"
     assert config.samples_per_stratum == 128
+    assert config.evaluator.kind == "raw"
     assert config.search.samples_per_stratum == 4
     assert config.search.simulations == 512
     assert config.decision_thresholds.maximum_neural_p95_policy_l1 == 0.25
     assert config.checkpoint.sha256 == (
         "0257bbee5f97e0c163ecf64eb50160fd8f8b6189b6ac042fd52dced3b0449bf3"
     )
+
+
+def test_committed_ensemble_audit_changes_only_evaluator_and_thresholds() -> None:
+    raw = load_symmetry_audit_config(
+        Path("configs/symmetry/champion-symmetry-audit-17x17-v2.yaml")
+    )
+    ensemble = load_symmetry_audit_config(
+        Path("configs/symmetry/champion-symmetry-ensemble-audit-17x17-v1.yaml")
+    )
+
+    assert ensemble.seed == raw.seed
+    assert ensemble.source == raw.source
+    assert ensemble.checkpoint == raw.checkpoint
+    assert ensemble.samples_per_stratum == raw.samples_per_stratum
+    assert ensemble.search == raw.search
+    assert raw.evaluator.kind == "raw"
+    assert ensemble.evaluator.kind == "d4-ensemble"
+    assert ensemble.evaluator.maximum_batch_size == 256
+    assert ensemble.decision_thresholds.maximum_neural_p95_policy_l1 == 1e-6
+    assert ensemble.decision_thresholds.minimum_search_selected_action_agreement == 0.95

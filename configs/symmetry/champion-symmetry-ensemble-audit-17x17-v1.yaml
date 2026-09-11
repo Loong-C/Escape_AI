@@ -1,0 +1,34 @@
+schema_version: 1
+run_id: champion-symmetry-ensemble-audit-17x17-v1
+seed: 20260914
+device: cuda
+inference_batch_size: 256
+samples_per_stratum: 128
+require_clean_worktree: true
+
+source:
+  parquet: "E:/Escape/_AI/games/champion-analysis-17x17-v1/*.parquet"
+  manifest: "E:/Escape/_AI/runs/champion-analysis-17x17-v1/progress.json"
+  manifest_sha256: "07f4351b3718becaaa2a693b4947ec91ea00d82ccec6e6d309db3254ce4d74bc"
+
+checkpoint:
+  path: "E:/Escape/_AI/checkpoints/lineage-c-17x17-v1/generation-0199.pt"
+  sha256: "0257bbee5f97e0c163ecf64eb50160fd8f8b6189b6ac042fd52dced3b0449bf3"
+
+evaluator:
+  kind: d4-ensemble
+  maximum_batch_size: 256
+
+search:
+  samples_per_stratum: 4
+  simulations: 512
+  c_puct: 1.5
+  parallel_leaves: 16
+
+decision_thresholds:
+  maximum_neural_p95_value_error: 0.000001
+  maximum_neural_p95_policy_l1: 0.000001
+  minimum_neural_top1_agreement: 0.999
+  minimum_neural_top5_overlap: 0.999
+  minimum_search_selected_action_agreement: 0.95
+  minimum_search_top5_overlap: 0.95
