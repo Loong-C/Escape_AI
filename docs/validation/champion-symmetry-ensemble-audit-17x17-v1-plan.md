@@ -39,3 +39,19 @@ raw result is the comparison baseline; the original result remains immutable.
 
 The formal atomic result belongs outside Git at
 `E:\Escape\_AI\runs\champion-symmetry-ensemble-audit-17x17-v1\result.json`.
+
+## Corrected schema-3 rerun
+
+The first schema-2 comparison established exact neural value, L1, and top-1
+equivariance, but exposed two metric/search edge cases. Top-5 overlap divided by
+five even when fewer than five legal actions remained, and PUCT resolved tied
+visits by local numeric action ID. Result schema 3 normalizes top-k by
+`min(5, legal actions)`, assigns equal visit counts equal rank, and uses the
+state's canonical D4 action order for PUCT selection ties, root noise, final
+temperature-zero selection, and seeded sampling.
+
+The immutable corrected rerun uses
+`champion-symmetry-audit-17x17-v3.yaml` and
+`champion-symmetry-ensemble-audit-17x17-v2.yaml`. All source, model, sampling,
+and search budgets remain unchanged. Their result directories use the matching
+run IDs under `E:\Escape\_AI\runs`.

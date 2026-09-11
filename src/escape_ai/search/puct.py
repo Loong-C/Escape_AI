@@ -15,6 +15,8 @@ import torch
 from escape_ai import _escape_core
 from escape_ai.training import PolicyValueNet, encode_state, legal_action_mask
 
+from .d4 import canonical_action_order, canonical_symmetry
+
 
 @dataclass(frozen=True, slots=True)
 class Evaluation:
@@ -88,6 +90,7 @@ class SearchNode:
     priors: npt.NDArray[np.float32] = field(init=False)
     edge_visits: npt.NDArray[np.int32] = field(init=False)
     edge_value_sums: npt.NDArray[np.float32] = field(init=False)
+    canonical_transform: _escape_core.Symmetry | None = field(init=False, default=None)
 
     def __post_init__(self) -> None:
         action_space = (self.state.size + 1) ** 2
@@ -261,7 +264,17 @@ class PUCTSearch:
                 )
         policy = self._visit_policy(visits, 1.0)
         selection_policy = self._visit_policy(visits, temperature)
-        action = self._sample_action(selection_policy, rng)
+        if temperature <= 1e-8:
+            tied = [int(action) for action in np.flatnonzero(visits == visits.max())]
+            action = self._canonical_actions(root, tied)[0]
+        else:
+            action = self._sample_action(
+                selection_policy,
+                rng,
+                action_order=self._canonical_actions(
+                    root, [int(action) for action in np.flatnonzero(selection_policy)]
+                ),
+            )
         statistics.sort(key=lambda item: (-item.visits, item.action))
         root_value = float(root.edge_value_sums.sum()) / max(root.visits, 1)
         return SearchResult(action, policy, root_value, tuple(statistics))
@@ -324,15 +337,31 @@ class PUCTSearch:
             where=legal_visits != 0,
         )
         exploration = self.c_puct * node.priors[node.legal] * scale / (1.0 + legal_visits)
-        return int(node.legal[int(np.argmax(means + exploration))])
+        scores = means + exploration
+        tied = [
+            int(node.legal[index])
+            for index in np.flatnonzero(scores == scores.max())
+        ]
+        return self._canonical_actions(node, tied)[0]
+
+    @staticmethod
+    def _canonical_actions(node: SearchNode, actions: list[int]) -> list[int]:
+        if node.canonical_transform is None:
+            node.canonical_transform = canonical_symmetry(node.state)
+        return canonical_action_order(node.state, actions, node.canonical_transform)
 
     def _add_root_noise(self, root: SearchNode, rng: random.Random) -> None:
         if not root.legal.size or self.dirichlet_fraction <= 0.0:
             return
+        canonical_actions = self._canonical_actions(
+            root, [int(action) for action in root.legal]
+        )
         noise_rng = np.random.default_rng(rng.getrandbits(64))
-        noise = noise_rng.dirichlet(np.full(len(root.legal), self.dirichlet_alpha))
+        noise = noise_rng.dirichlet(np.full(len(canonical_actions), self.dirichlet_alpha))
         keep = 1.0 - self.dirichlet_fraction
-        root.priors[root.legal] = keep * root.priors[root.legal] + self.dirichlet_fraction * noise
+        root.priors[canonical_actions] = (
+            keep * root.priors[canonical_actions] + self.dirichlet_fraction * noise
+        )
 
     @staticmethod
     def _visit_policy(
@@ -350,7 +379,12 @@ class PUCTSearch:
         return (weights / total).astype(np.float32)
 
     @staticmethod
-    def _sample_action(policy: npt.NDArray[np.float32], rng: random.Random) -> int:
-        actions = np.flatnonzero(policy)
+    def _sample_action(
+        policy: npt.NDArray[np.float32],
+        rng: random.Random,
+        *,
+        action_order: list[int] | None = None,
+    ) -> int:
+        actions = action_order or [int(action) for action in np.flatnonzero(policy)]
         weights = [float(policy[action]) for action in actions]
-        return int(rng.choices(actions.tolist(), weights=weights, k=1)[0])
+        return rng.choices(actions, weights=weights, k=1)[0]

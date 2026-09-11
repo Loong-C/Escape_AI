@@ -10,18 +10,8 @@ import numpy as np
 
 from escape_ai import _escape_core
 
+from .d4 import D4_SYMMETRIES
 from .puct import Evaluation, PositionEvaluator
-
-D4_SYMMETRIES = (
-    _escape_core.Symmetry.IDENTITY,
-    _escape_core.Symmetry.ROTATE_90,
-    _escape_core.Symmetry.ROTATE_180,
-    _escape_core.Symmetry.ROTATE_270,
-    _escape_core.Symmetry.FLIP_HORIZONTAL,
-    _escape_core.Symmetry.FLIP_VERTICAL,
-    _escape_core.Symmetry.DIAGONAL_MAIN,
-    _escape_core.Symmetry.DIAGONAL_ANTI,
-)
 
 
 @dataclass(frozen=True, slots=True)

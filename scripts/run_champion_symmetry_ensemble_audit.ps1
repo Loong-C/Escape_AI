@@ -4,7 +4,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $artifactRoot = "E:\Escape\_AI"
 $logRoot = Join-Path $artifactRoot "runs\champion-symmetry-ensemble-audit-launcher"
 $runner = Join-Path $repoRoot ".venv\Scripts\escape-ai.exe"
-$config = "configs\symmetry\champion-symmetry-ensemble-audit-17x17-v1.yaml"
+$config = "configs\symmetry\champion-symmetry-ensemble-audit-17x17-v2.yaml"
 $mutex = [System.Threading.Mutex]::new(
     $false,
     "Global\EscapeAIChampionSymmetryEnsembleAudit"

@@ -35,7 +35,7 @@ from .runner import ModelReference
 from .tactical import SourceReference, _atomic_json, _git, _hardware, _validate_source
 
 SYMMETRY_AUDIT_CONFIG_SCHEMA_VERSION = 1
-SYMMETRY_AUDIT_RESULT_SCHEMA_VERSION = 2
+SYMMETRY_AUDIT_RESULT_SCHEMA_VERSION = 3
 
 _SYMMETRIES = (
     _escape_core.Symmetry.IDENTITY,
@@ -412,9 +412,10 @@ def _policy_metrics(
         (right[right_positive] * np.log(right[right_positive] / midpoint[right_positive])).sum()
     )
     js = 0.5 * (left_kl + right_kl)
-    expected_top = _top_actions(state, expected, 5)
-    observed_top = _top_actions(state, observed, 5)
-    overlap = len(set(expected_top) & set(observed_top)) / 5.0
+    top_count = min(5, len(legal))
+    expected_top = _top_actions(state, expected, top_count)
+    observed_top = _top_actions(state, observed, top_count)
+    overlap = len(set(expected_top) & set(observed_top)) / top_count
     return (
         float(np.abs(left - right).sum()),
         js,
@@ -597,7 +598,11 @@ def _neural_audit(
 
 
 def _rank_by_action(result: SearchResult) -> dict[int, int]:
-    return {item.action: rank for rank, item in enumerate(result.statistics, 1)}
+    return {
+        item.action: 1
+        + sum(other.visits > item.visits for other in result.statistics)
+        for item in result.statistics
+    }
 
 
 def _search_audit(

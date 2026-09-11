@@ -79,13 +79,15 @@ def test_committed_symmetry_audit_locks_sampling_and_search_budget() -> None:
 
 def test_committed_ensemble_audit_changes_only_evaluator_and_thresholds() -> None:
     raw = load_symmetry_audit_config(
-        Path("configs/symmetry/champion-symmetry-audit-17x17-v2.yaml")
+        Path("configs/symmetry/champion-symmetry-audit-17x17-v3.yaml")
     )
     ensemble = load_symmetry_audit_config(
-        Path("configs/symmetry/champion-symmetry-ensemble-audit-17x17-v1.yaml")
+        Path("configs/symmetry/champion-symmetry-ensemble-audit-17x17-v2.yaml")
     )
 
     assert ensemble.seed == raw.seed
+    assert raw.run_id.endswith("v3")
+    assert ensemble.run_id.endswith("v2")
     assert ensemble.source == raw.source
     assert ensemble.checkpoint == raw.checkpoint
     assert ensemble.samples_per_stratum == raw.samples_per_stratum

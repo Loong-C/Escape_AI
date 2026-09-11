@@ -44,7 +44,9 @@ pwsh scripts/bootstrap.ps1
 .venv\Scripts\escape-ai analyze-games --input "E:/Escape/_AI/games/research-smoke-3x3-v1" --output "E:/Escape/_AI/runs/research-smoke-3x3-v1/analysis.json"
 .venv\Scripts\escape-ai run-tactical-audit --config configs/tactics/champion-tactical-audit-17x17-v1.yaml
 .venv\Scripts\escape-ai run-symmetry-audit --config configs/symmetry/champion-symmetry-audit-17x17-v1.yaml
+.venv\Scripts\escape-ai run-symmetry-audit --config configs/symmetry/champion-symmetry-audit-17x17-v3.yaml
 .venv\Scripts\escape-ai run-symmetry-audit --config configs/symmetry/champion-symmetry-ensemble-audit-17x17-v1.yaml
+.venv\Scripts\escape-ai run-symmetry-audit --config configs/symmetry/champion-symmetry-ensemble-audit-17x17-v2.yaml
 ```
 
 构建并打开研究棋谱查看器：

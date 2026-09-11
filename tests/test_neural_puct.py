@@ -8,7 +8,7 @@ import pytest
 import torch
 
 from escape_ai import _escape_core
-from escape_ai.search import PUCTSearch, TorchEvaluator, UniformEvaluator
+from escape_ai.search import D4_SYMMETRIES, PUCTSearch, TorchEvaluator, UniformEvaluator
 from escape_ai.training import NetworkConfig, PolicyValueNet, encode_state, legal_action_mask
 
 
@@ -138,3 +138,37 @@ def test_puct_batches_independent_roots() -> None:
         for result, state in zip(results, states, strict=True)
     )
     assert all(sum(item.visits for item in result.statistics) == 8 for result in results)
+
+
+@pytest.mark.parametrize(
+    ("temperature", "add_root_noise"),
+    [(0.0, False), (1.0, True)],
+)
+def test_puct_ties_noise_and_sampling_use_canonical_action_order(
+    temperature: float,
+    add_root_noise: bool,
+) -> None:
+    state = _escape_core.State(5)
+    for action in (0, 8, 15, 5, 23, 31, 2):
+        state = state.apply(action)
+    states = [state.transformed(symmetry) for symmetry in D4_SYMMETRIES]
+    results = PUCTSearch(
+        UniformEvaluator(), simulations=16, parallel_leaves=4
+    ).run_batch(
+        states,
+        [random.Random(71) for _state in states],
+        temperatures=[temperature] * len(states),
+        add_root_noise=add_root_noise,
+    )
+
+    base = results[0]
+    for symmetry, result in zip(D4_SYMMETRIES, results, strict=True):
+        assert result.action == _escape_core.transform_action(
+            base.action, state.size, symmetry
+        )
+        mapped = np.zeros_like(result.policy)
+        for action in state.legal_actions():
+            mapped[action] = result.policy[
+                _escape_core.transform_action(action, state.size, symmetry)
+            ]
+        np.testing.assert_array_equal(mapped, base.policy)

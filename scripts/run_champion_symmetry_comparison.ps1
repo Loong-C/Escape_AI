@@ -5,8 +5,8 @@ $artifactRoot = "E:\Escape\_AI"
 $logRoot = Join-Path $artifactRoot "runs\champion-symmetry-comparison-launcher"
 $runner = Join-Path $repoRoot ".venv\Scripts\escape-ai.exe"
 $configs = @(
-    "configs\symmetry\champion-symmetry-audit-17x17-v2.yaml",
-    "configs\symmetry\champion-symmetry-ensemble-audit-17x17-v1.yaml"
+    "configs\symmetry\champion-symmetry-audit-17x17-v3.yaml",
+    "configs\symmetry\champion-symmetry-ensemble-audit-17x17-v2.yaml"
 )
 $mutex = [System.Threading.Mutex]::new($false, "Global\EscapeAIChampionSymmetryComparison")
 $ownsMutex = $false
