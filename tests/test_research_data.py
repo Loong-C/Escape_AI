@@ -91,3 +91,19 @@ def test_seeded_opening_exploration_produces_multiple_lines() -> None:
     )
     first_actions = {game.moves[0].action for game in games}
     assert len(first_actions) > 1
+
+
+def test_research_games_can_continue_from_saved_state() -> None:
+    initial = _escape_core.State(3).apply(0).apply(1)
+    games = play_research_games(
+        UniformEvaluator(),
+        ResearchSearchConfig(board_size=3, simulations=4, parallel_leaves=2),
+        seeds=[71, 72],
+        white_model_id="uniform",
+        game_ids=["branch-a", "branch-b"],
+        initial_states=[initial, initial],
+    )
+
+    assert len(games) == 2
+    assert all(game.moves[0].ply == initial.ply for game in games)
+    assert all(game.moves[0].state_hash == initial.hash() for game in games)

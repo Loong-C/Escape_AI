@@ -331,6 +331,25 @@ def analyze_games(
     typer.echo(json.dumps({"status": "ok", **result}, indent=2, default=str))
 
 
+@app.command("run-tactical-audit")
+def run_saved_position_tactical_audit(
+    config: str = typer.Option(..., help="Committed YAML tactical-audit configuration"),
+) -> None:
+    """Re-search saved positions and run forced matched-seed continuations."""
+
+    from pathlib import Path
+
+    from .research.tactical import run_tactical_audit
+
+    repo_root = Path(__file__).resolve().parents[2]
+    result = run_tactical_audit(
+        Path(config),
+        repo_root=repo_root,
+        progress=lambda message: typer.echo(message, err=True),
+    )
+    typer.echo(json.dumps({"status": "ok", **asdict(result)}, indent=2, default=str))
+
+
 @app.command("serve-viewer")
 def serve_viewer(
     games: str = typer.Option(..., help="Research Parquet directory or glob"),

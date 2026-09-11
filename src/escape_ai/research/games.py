@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import random
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from escape_ai import _escape_core
@@ -74,12 +75,23 @@ def play_research_games(
     game_ids: list[str],
     black_evaluator: PositionEvaluator | None = None,
     black_model_id: str | None = None,
+    initial_states: Sequence[_escape_core.State] | None = None,
 ) -> list[ResearchGame]:
     if len(seeds) != len(game_ids):
         raise ValueError("research seeds and game IDs must have equal lengths")
     if not seeds:
         return []
-    states = [_escape_core.State(config.board_size) for _ in seeds]
+    if initial_states is not None and len(initial_states) != len(seeds):
+        raise ValueError("initial states and seeds must have equal lengths")
+    states = (
+        [_escape_core.State(config.board_size) for _ in seeds]
+        if initial_states is None
+        else list(initial_states)
+    )
+    if any(state.size != config.board_size for state in states):
+        raise ValueError("initial state board size does not match search configuration")
+    if any(state.outcome["status"] != "playing" for state in states):
+        raise ValueError("initial states must be nonterminal")
     rngs = [random.Random(seed) for seed in seeds]
     moves: list[list[ResearchMove]] = [[] for _ in seeds]
     selected_black_evaluator = black_evaluator or white_evaluator

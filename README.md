@@ -42,6 +42,7 @@ pwsh scripts/bootstrap.ps1
 .venv\Scripts\escape-ai run-lineage --config configs/lineages/smoke-3x3-v1.yaml
 .venv\Scripts\escape-ai generate-research-games --config configs/games/research-smoke-3x3-v1.yaml
 .venv\Scripts\escape-ai analyze-games --input "E:/Escape/_AI/games/research-smoke-3x3-v1" --output "E:/Escape/_AI/runs/research-smoke-3x3-v1/analysis.json"
+.venv\Scripts\escape-ai run-tactical-audit --config configs/tactics/champion-tactical-audit-17x17-v1.yaml
 ```
 
 构建并打开研究棋谱查看器：
@@ -87,6 +88,12 @@ PUCT 模拟并保存完整的逐手搜索与结构特征，可通过以下启动
 
 ```powershell
 pwsh scripts/run_champion_analysis.ps1
+```
+
+冠军分析筛出的保存局面可按多档 PUCT 预算复核，并以匹配种子续弈强制分支：
+
+```powershell
+pwsh scripts/run_champion_tactical_audit.ps1
 ```
 
 `bootstrap.ps1` 会安装首阶段依赖、建立 `E:\Escape\_AI` 目录并使用 MSVC 2022 构建 C++ 扩展。仅需重新编译时可运行 `pwsh scripts/build_cpp.ps1`。

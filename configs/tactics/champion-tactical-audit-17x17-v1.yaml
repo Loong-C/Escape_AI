@@ -1,0 +1,62 @@
+schema_version: 1
+run_id: champion-tactical-audit-17x17-v1
+seed: 20260913
+device: cuda
+c_puct: 1.5
+parallel_leaves: 16
+require_clean_worktree: true
+
+source:
+  parquet: "E:/Escape/_AI/games/champion-analysis-17x17-v1/*.parquet"
+  manifest: "E:/Escape/_AI/runs/champion-analysis-17x17-v1/progress.json"
+  manifest_sha256: "07f4351b3718becaaa2a693b4947ec91ea00d82ccec6e6d309db3254ce4d74bc"
+
+checkpoint:
+  path: "E:/Escape/_AI/checkpoints/lineage-c-17x17-v1/generation-0199.pt"
+  sha256: "0257bbee5f97e0c163ecf64eb50160fd8f8b6189b6ac042fd52dced3b0449bf3"
+
+positions:
+  - id: game-687-unique-defense
+    game_id: champion-analysis-17x17-v1-00000687
+    ply: 69
+    state_hash: 12347505577636488699
+    budgets: [512, 2048, 8192, 32768]
+    target_actions: [200, 23]
+    expected:
+      turn: black
+      ball: [10, 2]
+      action_directions:
+        200: down
+        23: left
+
+  - id: opening-206-168
+    game_id: champion-analysis-17x17-v1-00000003
+    ply: 2
+    state_hash: 9734087719835415932
+    budgets: [512, 2048, 8192, 32768]
+    target_actions: [132, 116]
+    expected:
+      turn: white
+      ball: [8, 8]
+      action_directions:
+        132: null
+        116: null
+
+branches:
+  - id: opening-206-168-forced
+    position_id: opening-206-168
+    actions: [132, 116]
+    games_per_action: 64
+    actor_batch_size: 16
+    seed: 20261912
+    search:
+      board_size: 17
+      simulations: 512
+      c_puct: 1.5
+      parallel_leaves: 16
+      temperature: 0.0
+      opening_temperature: 0.8
+      opening_plies: 20
+      add_root_noise: false
+      top_candidates: 16
+      compute_reply_resistance: false
