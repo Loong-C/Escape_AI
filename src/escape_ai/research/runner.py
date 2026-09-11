@@ -139,6 +139,15 @@ def _restore_summaries(raw: object) -> list[ResearchShardSummary]:
         )
         if not summary.path.is_file():
             raise FileNotFoundError(summary.path)
+        actual_bytes = summary.path.stat().st_size
+        if actual_bytes != summary.bytes:
+            raise RuntimeError(
+                f"research shard size mismatch: {summary.path} "
+                f"(expected {summary.bytes}, found {actual_bytes})"
+            )
+        actual_sha256 = sha256_file(summary.path)
+        if actual_sha256 != summary.sha256:
+            raise RuntimeError(f"research shard hash mismatch: {summary.path}")
         summaries.append(summary)
     return summaries
 

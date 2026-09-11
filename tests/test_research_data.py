@@ -60,6 +60,12 @@ def test_research_games_write_queryable_parquet(tmp_path: Path) -> None:
         + analysis["first_ball_move"]["games_without_movement"]
         == 2
     )
+    assert analysis["overview"]["mean_first_ball_move"] == (
+        analysis["first_ball_move"]["ply_distribution"]["mean"]
+    )
+    assert analysis["overview"]["median_first_ball_move"] == (
+        analysis["first_ball_move"]["ply_distribution"]["median"]
+    )
     assert set(analysis["phases"]) >= {"opening"}
     assert analysis["candidate_value_gaps"]["positions"] > 0
     assert analysis_path.is_file()

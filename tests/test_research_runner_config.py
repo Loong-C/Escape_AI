@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
-from escape_ai.research.runner import load_research_run_config
+import pytest
+
+from escape_ai.research.runner import _restore_summaries, load_research_run_config
 
 
 def test_committed_research_smoke_config_loads() -> None:
@@ -28,3 +31,29 @@ def test_committed_champion_analysis_locks_formal_budget_and_checkpoint() -> Non
     assert config.white.sha256 == (
         "0257bbee5f97e0c163ecf64eb50160fd8f8b6189b6ac042fd52dced3b0449bf3"
     )
+
+
+def test_restore_summaries_validates_recorded_size_and_hash(tmp_path: Path) -> None:
+    shard = tmp_path / "shard.parquet"
+    shard.write_bytes(b"recorded research shard")
+    digest = hashlib.sha256(shard.read_bytes()).hexdigest()
+    recorded = [
+        {
+            "path": str(shard),
+            "games": 2,
+            "moves": 17,
+            "bytes": shard.stat().st_size,
+            "sha256": digest,
+        }
+    ]
+
+    summaries = _restore_summaries(recorded)
+    assert summaries[0].sha256 == digest
+
+    shard.write_bytes(b"tampered research shard with extra bytes")
+    with pytest.raises(RuntimeError, match="research shard size mismatch"):
+        _restore_summaries(recorded)
+
+    recorded[0]["bytes"] = shard.stat().st_size
+    with pytest.raises(RuntimeError, match="research shard hash mismatch"):
+        _restore_summaries(recorded)

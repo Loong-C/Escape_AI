@@ -109,7 +109,7 @@ def analyze_research_games(input_glob: str, output: Path) -> dict[str, object]:
         WITH games AS (
           SELECT game_id, any_value(winner) winner, any_value(reason) reason,
                  max(ply) + 1 plies,
-                 min(ply) FILTER (WHERE ball_moved) first_ball_move
+                 (min(ply) FILTER (WHERE ball_moved)) + 1 first_ball_move
           FROM read_parquet(?) GROUP BY game_id
         )
         SELECT count(*) games,
