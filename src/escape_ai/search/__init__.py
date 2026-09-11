@@ -2,6 +2,7 @@
 
 from .agents import Agent, GreedyAgent, HeuristicAgent, PureMCTSAgent, RandomAgent
 from .arena import MatchResult, play_game, run_match
+from .d4 import D4_SYMMETRIES
 from .neural_agent import NeuralPUCTAgent
 from .oracle import OracleResult, SearchLimitExceeded, solve_exact
 from .puct import (
@@ -13,7 +14,7 @@ from .puct import (
     TorchEvaluator,
     UniformEvaluator,
 )
-from .symmetry import D4_SYMMETRIES, D4SymmetryEnsembleEvaluator
+from .symmetry import D4SymmetryEnsembleEvaluator
 
 __all__ = [
     "D4_SYMMETRIES",
