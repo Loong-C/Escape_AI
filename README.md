@@ -42,6 +42,7 @@ pwsh scripts/bootstrap.ps1
 .venv\Scripts\escape-ai run-lineage --config configs/lineages/smoke-3x3-v1.yaml
 .venv\Scripts\escape-ai generate-research-games --config configs/games/research-smoke-3x3-v1.yaml
 .venv\Scripts\escape-ai analyze-games --input "E:/Escape/_AI/games/research-smoke-3x3-v1" --output "E:/Escape/_AI/runs/research-smoke-3x3-v1/analysis.json"
+.venv\Scripts\escape-ai analyze-first-player --input "E:/Escape/_AI/games/champion-first-player-diagnostic-17x17-v1/*.parquet" --output "E:/Escape/_AI/runs/champion-first-player-diagnostic-17x17-v1/analysis.json"
 .venv\Scripts\escape-ai run-tactical-audit --config configs/tactics/champion-tactical-audit-17x17-v1.yaml
 .venv\Scripts\escape-ai run-symmetry-audit --config configs/symmetry/champion-symmetry-audit-17x17-v1.yaml
 .venv\Scripts\escape-ai run-symmetry-audit --config configs/symmetry/champion-symmetry-audit-17x17-v3.yaml
@@ -107,6 +108,7 @@ PUCT 进行审计：
 pwsh scripts/run_champion_symmetry_audit.ps1
 pwsh scripts/run_champion_symmetry_ensemble_audit.ps1
 pwsh scripts/run_champion_symmetry_comparison.ps1
+pwsh scripts/run_champion_first_player_diagnostic.ps1
 ```
 
 `bootstrap.ps1` 会安装首阶段依赖、建立 `E:\Escape\_AI` 目录并使用 MSVC 2022 构建 C++ 扩展。仅需重新编译时可运行 `pwsh scripts/build_cpp.ps1`。

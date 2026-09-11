@@ -331,6 +331,21 @@ def analyze_games(
     typer.echo(json.dumps({"status": "ok", **result}, indent=2, default=str))
 
 
+@app.command("analyze-first-player")
+def analyze_first_player(
+    input_glob: str = typer.Option(..., "--input", help="Paired-start Parquet glob"),
+    output: str = typer.Option(..., help="JSON diagnostic output path"),
+) -> None:
+    """Validate paired role-swapped games and measure first-player outcomes."""
+
+    from pathlib import Path
+
+    from .research.first_player import analyze_first_player_games
+
+    result = analyze_first_player_games(input_glob, Path(output))
+    typer.echo(json.dumps({"status": "ok", **result}, indent=2, default=str))
+
+
 @app.command("run-tactical-audit")
 def run_saved_position_tactical_audit(
     config: str = typer.Option(..., help="Committed YAML tactical-audit configuration"),

@@ -8,8 +8,9 @@ from escape_ai import _escape_core
 from escape_ai.research.analyze import analyze_research_games
 from escape_ai.research.data import write_research_shard
 from escape_ai.research.features import position_features, transition_features
+from escape_ai.research.first_player import analyze_first_player_games
 from escape_ai.research.games import ResearchSearchConfig, play_research_games
-from escape_ai.search import UniformEvaluator
+from escape_ai.search import D4SymmetryEnsembleEvaluator, UniformEvaluator
 
 
 def test_position_and_transition_features_are_consistent() -> None:
@@ -107,3 +108,53 @@ def test_research_games_can_continue_from_saved_state() -> None:
     assert len(games) == 2
     assert all(game.moves[0].ply == initial.ply for game in games)
     assert all(game.moves[0].state_hash == initial.hash() for game in games)
+
+
+def test_paired_starting_players_generate_role_swapped_games(tmp_path: Path) -> None:
+    white_first = _escape_core.State(3)
+    black_first = _escape_core.State(3)
+    black_first.set_turn("black")
+    evaluator = D4SymmetryEnsembleEvaluator(UniformEvaluator(), maximum_batch_size=64)
+    games = play_research_games(
+        evaluator,
+        ResearchSearchConfig(
+            board_size=3,
+            simulations=8,
+            parallel_leaves=4,
+            opening_plies=4,
+            opening_temperature=0.8,
+        ),
+        seeds=[17, 17],
+        white_model_id="uniform-d4",
+        game_ids=["white-first", "black-first"],
+        initial_states=[white_first, black_first],
+    )
+
+    axis_swaps = (
+        _escape_core.Symmetry.ROTATE_90,
+        _escape_core.Symmetry.ROTATE_270,
+        _escape_core.Symmetry.DIAGONAL_MAIN,
+        _escape_core.Symmetry.DIAGONAL_ANTI,
+    )
+    matching = []
+    for symmetry in axis_swaps:
+        if len(games[0].moves) != len(games[1].moves):
+            continue
+        if all(
+            _escape_core.State.deserialize(left.state).transformed(symmetry).serialize()
+            == right.state
+            and _escape_core.transform_action(left.action, 3, symmetry) == right.action
+            for left, right in zip(games[0].moves, games[1].moves, strict=True)
+        ):
+            matching.append(symmetry)
+
+    assert matching
+    assert games[0].winner != games[1].winner
+    assert games[0].reason == games[1].reason
+
+    shard = tmp_path / "paired-starts.parquet"
+    write_research_shard(shard, games)
+    result = analyze_first_player_games(str(shard), tmp_path / "first-player.json")
+    assert result["matched_seeds"] == 1
+    assert result["mirrored_pairs"] == 1
+    assert result["all_pairs_mirrored"]

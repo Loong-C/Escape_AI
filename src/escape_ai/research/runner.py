@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import subprocess
 import time
 import uuid
@@ -12,10 +13,12 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+import torch
 import yaml  # type: ignore[import-untyped]
 
+from escape_ai import _escape_core
 from escape_ai.paths import ensure_artifact_layout, require_artifact_capacity
-from escape_ai.search import TorchEvaluator
+from escape_ai.search import D4SymmetryEnsembleEvaluator, PositionEvaluator, TorchEvaluator
 from escape_ai.training.checkpoint import load_checkpoint
 from escape_ai.training.data import sha256_file
 
@@ -36,6 +39,12 @@ class ModelReference:
 
 
 @dataclass(frozen=True, slots=True)
+class EvaluatorReference:
+    kind: str
+    maximum_batch_size: int
+
+
+@dataclass(frozen=True, slots=True)
 class ResearchRunConfig:
     run_id: str
     tier: str
@@ -45,8 +54,11 @@ class ResearchRunConfig:
     actor_batch_size: int
     device: str
     paired_colors: bool
+    starting_player_mode: str
     white: ModelReference
     black: ModelReference
+    white_evaluator: EvaluatorReference
+    black_evaluator: EvaluatorReference
     search: ResearchSearchConfig
     require_clean_worktree: bool = True
 
@@ -73,6 +85,14 @@ def _model_reference(value: object, label: str) -> ModelReference:
     return ModelReference(Path(str(raw["path"])), str(raw["sha256"]))
 
 
+def _evaluator_reference(value: object, label: str) -> EvaluatorReference:
+    raw = _mapping(value, label)
+    return EvaluatorReference(
+        kind=str(raw.get("kind", "raw")),
+        maximum_batch_size=int(raw.get("maximum_batch_size", 256)),
+    )
+
+
 def load_research_run_config(path: Path) -> ResearchRunConfig:
     raw = _mapping(yaml.safe_load(path.read_text(encoding="utf-8")), "research run")
     if raw.get("schema_version") != RESEARCH_RUN_SCHEMA_VERSION:
@@ -86,8 +106,16 @@ def load_research_run_config(path: Path) -> ResearchRunConfig:
         actor_batch_size=int(raw["actor_batch_size"]),
         device=str(raw.get("device", "cuda")),
         paired_colors=bool(raw.get("paired_colors", True)),
+        starting_player_mode=str(raw.get("starting_player_mode", "white")),
         white=_model_reference(raw["white_checkpoint"], "white checkpoint"),
         black=_model_reference(raw["black_checkpoint"], "black checkpoint"),
+        white_evaluator=_evaluator_reference(
+            raw.get("white_evaluator", {}), "white evaluator"
+        ),
+        black_evaluator=_evaluator_reference(
+            raw.get("black_evaluator", raw.get("white_evaluator", {})),
+            "black evaluator",
+        ),
         search=ResearchSearchConfig(**dict(_mapping(raw["search"], "search"))),
         require_clean_worktree=bool(raw.get("require_clean_worktree", True)),
     )
@@ -97,6 +125,19 @@ def load_research_run_config(path: Path) -> ResearchRunConfig:
         raise ValueError("games must be divisible by games_per_shard")
     if config.paired_colors and config.games % 2:
         raise ValueError("paired-color research runs require an even game count")
+    if config.starting_player_mode not in {"white", "black", "paired"}:
+        raise ValueError("starting player mode must be white, black, or paired")
+    if config.starting_player_mode == "paired":
+        if config.paired_colors:
+            raise ValueError("paired starts and paired evaluator colors cannot be combined")
+        paired_counts = (config.games, config.games_per_shard, config.actor_batch_size)
+        if any(value % 2 for value in paired_counts):
+            raise ValueError("paired-start counts and batch size must be even")
+    for evaluator in (config.white_evaluator, config.black_evaluator):
+        if evaluator.kind not in {"raw", "d4-ensemble"}:
+            raise ValueError(f"unsupported research evaluator: {evaluator.kind}")
+        if evaluator.maximum_batch_size < 1:
+            raise ValueError("research evaluator batch sizes must be positive")
     return config
 
 
@@ -122,6 +163,23 @@ def _atomic_json(path: Path, value: Mapping[str, object]) -> None:
         os.replace(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def _hardware(device: str) -> dict[str, object]:
+    selected = torch.device(device)
+    return {
+        "platform": platform.platform(),
+        "processor": platform.processor(),
+        "logical_cpus": os.cpu_count(),
+        "device": device,
+        "torch_version": torch.__version__,
+        "cuda_version": torch.version.cuda,
+        "gpu": (
+            torch.cuda.get_device_name(selected)
+            if selected.type == "cuda" and torch.cuda.is_available()
+            else None
+        ),
+    }
 
 
 def _restore_summaries(raw: object) -> list[ResearchShardSummary]:
@@ -156,11 +214,18 @@ def _generate_side(
     indices: list[int],
     *,
     config: ResearchRunConfig,
-    white_evaluator: TorchEvaluator,
-    black_evaluator: TorchEvaluator,
+    white_evaluator: PositionEvaluator,
+    black_evaluator: PositionEvaluator,
     white_id: str,
     black_id: str,
+    pair_agent_seeds: bool,
 ) -> list[ResearchGame]:
+    initial_states = [_escape_core.State(config.search.board_size) for _index in indices]
+    for index, state in zip(indices, initial_states, strict=True):
+        if config.starting_player_mode == "black" or (
+            config.starting_player_mode == "paired" and index % 2 == 1
+        ):
+            state.set_turn("black")
     return play_research_games(
         white_evaluator,
         config.search,
@@ -168,7 +233,7 @@ def _generate_side(
             config.seed
             + (
                 index // 2
-                if config.paired_colors and config.white.sha256 != config.black.sha256
+                if config.starting_player_mode == "paired" or pair_agent_seeds
                 else index
             )
             for index in indices
@@ -177,7 +242,25 @@ def _generate_side(
         game_ids=[f"{config.run_id}-{index:08d}" for index in indices],
         black_evaluator=black_evaluator,
         black_model_id=black_id,
+        initial_states=initial_states,
     )
+
+
+def _agent_id(model: ModelReference, evaluator: EvaluatorReference) -> str:
+    suffix = "raw" if evaluator.kind == "raw" else "d4"
+    return f"{model.model_id}-{suffix}"
+
+
+def _wrap_evaluator(
+    base: TorchEvaluator,
+    reference: EvaluatorReference,
+) -> PositionEvaluator:
+    if reference.kind == "d4-ensemble":
+        return D4SymmetryEnsembleEvaluator(
+            base,
+            maximum_batch_size=reference.maximum_batch_size,
+        )
+    return base
 
 
 def run_research_games(
@@ -210,12 +293,21 @@ def run_research_games(
             raise RuntimeError("research shard summaries do not match completed game count")
 
     white_model, _ = load_checkpoint(config.white.path, device=config.device)
-    white_evaluator = TorchEvaluator(white_model, config.device)
+    white_base = TorchEvaluator(white_model, config.device)
     if config.black.path == config.white.path:
-        black_evaluator = white_evaluator
+        black_base = white_base
     else:
         black_model, _ = load_checkpoint(config.black.path, device=config.device)
-        black_evaluator = TorchEvaluator(black_model, config.device)
+        black_base = TorchEvaluator(black_model, config.device)
+    white_evaluator = _wrap_evaluator(white_base, config.white_evaluator)
+    black_evaluator = (
+        white_evaluator
+        if black_base is white_base and config.black_evaluator == config.white_evaluator
+        else _wrap_evaluator(black_base, config.black_evaluator)
+    )
+    white_id = _agent_id(config.white, config.white_evaluator)
+    black_id = _agent_id(config.black, config.black_evaluator)
+    pair_agent_seeds = config.paired_colors and white_id != black_id
 
     started = time.perf_counter()
     while completed < config.games:
@@ -225,7 +317,7 @@ def run_research_games(
             wave = min(config.actor_batch_size, count - len(generated))
             first = completed + len(generated)
             indices = list(range(first, first + wave))
-            if config.paired_colors and config.white.sha256 != config.black.sha256:
+            if pair_agent_seeds:
                 even = [index for index in indices if index % 2 == 0]
                 odd = [index for index in indices if index % 2 == 1]
                 generated.extend(
@@ -234,8 +326,9 @@ def run_research_games(
                         config=config,
                         white_evaluator=white_evaluator,
                         black_evaluator=black_evaluator,
-                        white_id=config.white.model_id,
-                        black_id=config.black.model_id,
+                        white_id=white_id,
+                        black_id=black_id,
+                        pair_agent_seeds=True,
                     )
                 )
                 generated.extend(
@@ -244,8 +337,9 @@ def run_research_games(
                         config=config,
                         white_evaluator=black_evaluator,
                         black_evaluator=white_evaluator,
-                        white_id=config.black.model_id,
-                        black_id=config.white.model_id,
+                        white_id=black_id,
+                        black_id=white_id,
+                        pair_agent_seeds=True,
                     )
                 )
             else:
@@ -255,8 +349,9 @@ def run_research_games(
                         config=config,
                         white_evaluator=white_evaluator,
                         black_evaluator=black_evaluator,
-                        white_id=config.white.model_id,
-                        black_id=config.black.model_id,
+                        white_id=white_id,
+                        black_id=black_id,
+                        pair_agent_seeds=False,
                     )
                 )
         shard_index = completed // config.games_per_shard
@@ -273,6 +368,9 @@ def run_research_games(
                 "config_sha256": config_hash,
                 "white_checkpoint_sha256": config.white.sha256,
                 "black_checkpoint_sha256": config.black.sha256,
+                "white_evaluator": asdict(config.white_evaluator),
+                "black_evaluator": asdict(config.black_evaluator),
+                "starting_player_mode": config.starting_player_mode,
             },
         )
         summaries.append(summary)
@@ -288,6 +386,23 @@ def run_research_games(
                 "config_sha256": config_hash,
                 "completed_games": completed,
                 "target_games": config.games,
+                "white_agent_id": white_id,
+                "black_agent_id": black_id,
+                "white_checkpoint_sha256": config.white.sha256,
+                "black_checkpoint_sha256": config.black.sha256,
+                "white_evaluator": asdict(config.white_evaluator),
+                "black_evaluator": asdict(config.black_evaluator),
+                "starting_player_mode": config.starting_player_mode,
+                "seed": config.seed,
+                "seed_pairing": (
+                    "adjacent-starting-player-pairs"
+                    if config.starting_player_mode == "paired"
+                    else "adjacent-agent-color-pairs"
+                    if pair_agent_seeds
+                    else "one-seed-per-game"
+                ),
+                "search": asdict(config.search),
+                "hardware": _hardware(config.device),
                 "moves": sum(item.moves for item in summaries),
                 "shards": [{**asdict(item), "path": str(item.path)} for item in summaries],
             },
