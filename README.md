@@ -8,7 +8,7 @@ Escape AI 是面向 17 × 17 Escape 抽象策略游戏的计算研究平台。�
 - 规则来源：`F:\Personal\Code\Escape\docs\Rule.md`，冻结副本见 `docs/Rule.md`。
 - 源代码与报告：`F:\Personal\Code\Escape_AI`。
 - 大型产物：`E:\Escape\_AI`。
-- 当前里程碑：双规则引擎、验证器、固定基线、OpenSpiel、神经 PUCT、自对弈训练、模型联赛、研究记录/分析器与只读棋谱查看器。
+- 当前里程碑：双规则引擎、验证器、固定基线、OpenSpiel、神经 PUCT、自对弈训练、模型联赛、研究记录/分析器、D4 对称集成、先手效应诊断与只读棋谱查看器。
 
 ## 架构边界
 
