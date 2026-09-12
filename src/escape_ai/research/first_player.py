@@ -99,27 +99,67 @@ def _mapped_player(player: str | None) -> str | None:
     raise ValueError(f"invalid winner: {player}")
 
 
-def _matching_symmetry(white: GameTrace, black: GameTrace) -> str | None:
+def _matching_symmetry_path(
+    white: GameTrace,
+    black: GameTrace,
+) -> tuple[str, ...] | None:
+    """Return a minimum-switch role-swapping symmetry for every recorded ply.
+
+    A fixed transform is sufficient for generic positions.  At a position with
+    a non-trivial D4 stabilizer, however, two equally valid representatives of
+    the same action orbit can cause the fixed transform to change while both
+    trajectories remain exactly equivalent in the quotient game.  Requiring
+    one transform for the whole game would incorrectly reject that case.
+    """
+
     if (
         len(white.moves) != len(black.moves)
         or _mapped_player(white.winner) != black.winner
         or white.reason != black.reason
     ):
         return None
-    for symmetry in _AXIS_SWAPS:
-        matches = True
-        for source, target in zip(white.moves, black.moves, strict=True):
-            state = _escape_core.State.deserialize(source.state)
-            if (
-                state.transformed(symmetry).serialize() != target.state
-                or _escape_core.transform_action(source.action, state.size, symmetry)
-                != target.action
-            ):
-                matches = False
-                break
-        if matches:
-            return symmetry.name.lower()
-    return None
+    options: list[tuple[int, ...]] = []
+    for source, target in zip(white.moves, black.moves, strict=True):
+        state = _escape_core.State.deserialize(source.state)
+        matching = tuple(
+            index
+            for index, symmetry in enumerate(_AXIS_SWAPS)
+            if state.transformed(symmetry).serialize() == target.state
+            and _escape_core.transform_action(source.action, state.size, symmetry)
+            == target.action
+        )
+        if not matching:
+            return None
+        options.append(matching)
+
+    # Dynamic programming avoids introducing an unnecessary switch when an
+    # early symmetric position admits several equally valid representatives.
+    paths: dict[int, tuple[int, tuple[int, ...]]] = {
+        symmetry: (0, (symmetry,)) for symmetry in options[0]
+    }
+    for matching in options[1:]:
+        updated: dict[int, tuple[int, tuple[int, ...]]] = {}
+        for symmetry in matching:
+            updated[symmetry] = min(
+                (
+                    switches + int(previous != symmetry),
+                    (*path, symmetry),
+                )
+                for previous, (switches, path) in paths.items()
+            )
+        paths = updated
+    _switches, selected = min(paths.values())
+    return tuple(_AXIS_SWAPS[index].name.lower() for index in selected)
+
+
+def _symmetry_segments(path: tuple[str, ...]) -> list[dict[str, object]]:
+    segments: list[dict[str, object]] = []
+    previous: str | None = None
+    for ply, symmetry in enumerate(path):
+        if symmetry != previous:
+            segments.append({"ply": ply, "symmetry": symmetry})
+            previous = symmetry
+    return segments
 
 
 def _outcome_summary(traces: list[GameTrace]) -> dict[str, object]:
@@ -183,6 +223,8 @@ def analyze_first_player_games(source: str, output: Path) -> dict[str, object]:
         by_seed[trace.seed].append(trace)
     invalid_pairs: list[dict[str, object]] = []
     symmetry_counts: Counter[str] = Counter()
+    symmetry_step_counts: Counter[str] = Counter()
+    dynamic_pairs: list[dict[str, object]] = []
     white_first: list[GameTrace] = []
     black_first: list[GameTrace] = []
     for seed, pair in sorted(by_seed.items()):
@@ -196,13 +238,25 @@ def analyze_first_player_games(source: str, output: Path) -> dict[str, object]:
         black = by_start["black"]
         white_first.append(white)
         black_first.append(black)
-        symmetry = _matching_symmetry(white, black)
-        if symmetry is None:
+        symmetry_path = _matching_symmetry_path(white, black)
+        if symmetry_path is None:
             invalid_pairs.append(
                 {"seed": seed, "game_ids": [white.game_id, black.game_id]}
             )
         else:
-            symmetry_counts[symmetry] += 1
+            segments = _symmetry_segments(symmetry_path)
+            symmetry_step_counts.update(symmetry_path)
+            if len(segments) == 1:
+                symmetry_counts[symmetry_path[0]] += 1
+            else:
+                symmetry_counts["dynamic"] += 1
+                dynamic_pairs.append(
+                    {
+                        "seed": seed,
+                        "game_ids": [white.game_id, black.game_id],
+                        "symmetry_segments": segments,
+                    }
+                )
 
     official = _outcome_summary(white_first)
     diagnostic = _outcome_summary(black_first)
@@ -217,6 +271,13 @@ def analyze_first_player_games(source: str, output: Path) -> dict[str, object]:
         "mirrored_pairs": sum(symmetry_counts.values()),
         "all_pairs_mirrored": not invalid_pairs and len(by_seed) == len(white_first),
         "symmetry_counts": dict(sorted(symmetry_counts.items())),
+        "symmetry_step_counts": dict(sorted(symmetry_step_counts.items())),
+        "dynamic_symmetry_pairs": len(dynamic_pairs),
+        "symmetry_switches": sum(
+            len(cast(list[object], pair["symmetry_segments"])) - 1
+            for pair in dynamic_pairs
+        ),
+        "dynamic_pairs": dynamic_pairs,
         "invalid_pairs": invalid_pairs,
         "official_white_first": official,
         "diagnostic_black_first": diagnostic,

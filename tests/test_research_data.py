@@ -9,7 +9,12 @@ from escape_ai.research.analyze import analyze_research_games
 from escape_ai.research.data import write_research_shard
 from escape_ai.research.features import position_features, transition_features
 from escape_ai.research.first_player import analyze_first_player_games
-from escape_ai.research.games import ResearchSearchConfig, play_research_games
+from escape_ai.research.games import (
+    ResearchGame,
+    ResearchMove,
+    ResearchSearchConfig,
+    play_research_games,
+)
 from escape_ai.search import D4SymmetryEnsembleEvaluator, UniformEvaluator
 
 
@@ -158,3 +163,82 @@ def test_paired_starting_players_generate_role_swapped_games(tmp_path: Path) -> 
     assert result["matched_seeds"] == 1
     assert result["mirrored_pairs"] == 1
     assert result["all_pairs_mirrored"]
+
+
+def test_first_player_analysis_accepts_stabilizer_symmetry_switch(
+    tmp_path: Path,
+) -> None:
+    def game_from_actions(
+        game_id: str,
+        starting_player: str,
+        actions: list[int],
+    ) -> ResearchGame:
+        state = _escape_core.State(17)
+        if starting_player == "black":
+            state.set_turn("black")
+        moves: list[ResearchMove] = []
+        for action in actions:
+            after = state.apply(action)
+            moves.append(
+                ResearchMove(
+                    ply=state.ply,
+                    turn=state.turn,
+                    state=state.serialize(),
+                    state_hash=state.hash(),
+                    action=action,
+                    root_value=0.0,
+                    policy_entropy=0.0,
+                    features=position_features(state),
+                    transition=transition_features(state, action, after),
+                    candidates=(),
+                )
+            )
+            state = after
+        return ResearchGame(
+            game_id=game_id,
+            white_model_id="symmetric",
+            black_model_id="symmetric",
+            seed=20261769,
+            board_size=17,
+            search_simulations=512,
+            winner=None,
+            reason="fixture",
+            moves=tuple(moves),
+        )
+
+    # This real six-ply prefix is related by rotate_270 through ply three.  At
+    # ply four a stabilizer-equivalent action representative is selected, after
+    # which rotate_90 relates the trajectories.  Every transition remains D4
+    # role-swapped equivalent even though no single transform covers the game.
+    games = [
+        game_from_actions(
+            "white-first",
+            "white",
+            [207, 297, 116, 26, 206, 173],
+        ),
+        game_from_actions(
+            "black-first",
+            "black",
+            [155, 160, 168, 163, 150, 206],
+        ),
+    ]
+    shard = tmp_path / "stabilizer-switch.parquet"
+    write_research_shard(shard, games)
+
+    result = analyze_first_player_games(str(shard), tmp_path / "analysis.json")
+
+    assert result["all_pairs_mirrored"]
+    assert result["mirrored_pairs"] == 1
+    assert result["dynamic_symmetry_pairs"] == 1
+    assert result["symmetry_switches"] == 1
+    assert result["symmetry_counts"] == {"dynamic": 1}
+    assert result["dynamic_pairs"] == [
+        {
+            "seed": 20261769,
+            "game_ids": ["white-first", "black-first"],
+            "symmetry_segments": [
+                {"ply": 0, "symmetry": "rotate_270"},
+                {"ply": 4, "symmetry": "rotate_90"},
+            ],
+        }
+    ]
