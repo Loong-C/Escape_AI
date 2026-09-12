@@ -346,6 +346,21 @@ def analyze_first_player(
     typer.echo(json.dumps({"status": "ok", **result}, indent=2, default=str))
 
 
+@app.command("analyze-evaluator-match")
+def analyze_evaluator_strength_match(
+    input_path: str = typer.Option(..., "--input", help="Paired-color Parquet directory"),
+    output: str = typer.Option(..., help="JSON strength-analysis output path"),
+) -> None:
+    """Validate paired color swaps and compare raw with D4 strength."""
+
+    from pathlib import Path
+
+    from .research.evaluator_match import analyze_evaluator_match
+
+    result = analyze_evaluator_match(input_path, Path(output))
+    typer.echo(json.dumps({"status": "ok", **result}, indent=2, default=str))
+
+
 @app.command("run-tactical-audit")
 def run_saved_position_tactical_audit(
     config: str = typer.Option(..., help="Committed YAML tactical-audit configuration"),

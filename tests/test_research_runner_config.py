@@ -56,6 +56,23 @@ def test_first_player_diagnostic_pairs_original_seeds_and_ensemble() -> None:
     assert config.seed == 20260912
 
 
+def test_raw_vs_d4_strength_config_pairs_fresh_seeds_and_colors() -> None:
+    config = load_research_run_config(
+        Path("configs/games/champion-raw-vs-d4-strength-17x17-v1.yaml")
+    )
+
+    assert config.games == 2_000
+    assert config.games_per_shard == 40
+    assert config.actor_batch_size == 40
+    assert config.starting_player_mode == "white"
+    assert config.paired_colors
+    assert config.white == config.black
+    assert config.white_evaluator.kind == "raw"
+    assert config.black_evaluator.kind == "d4-ensemble"
+    assert config.search.simulations == 512
+    assert config.seed == 20262912
+
+
 def test_research_runner_assigns_one_seed_to_paired_starting_players() -> None:
     formal = load_research_run_config(
         Path("configs/games/champion-first-player-diagnostic-17x17-v1.yaml")
@@ -87,6 +104,53 @@ def test_research_runner_assigns_one_seed_to_paired_starting_players() -> None:
 
     assert [game.seed for game in games] == [config.seed, config.seed]
     assert [game.moves[0].turn for game in games] == ["white", "black"]
+
+
+def test_research_runner_assigns_one_seed_to_reciprocal_agent_colors() -> None:
+    formal = load_research_run_config(
+        Path("configs/games/champion-raw-vs-d4-strength-17x17-v1.yaml")
+    )
+    config = replace(
+        formal,
+        games=2,
+        games_per_shard=2,
+        actor_batch_size=2,
+        search=ResearchSearchConfig(
+            board_size=3,
+            simulations=4,
+            parallel_leaves=2,
+            opening_plies=2,
+            opening_temperature=0.8,
+        ),
+    )
+    raw = UniformEvaluator()
+    d4 = D4SymmetryEnsembleEvaluator(UniformEvaluator(), maximum_batch_size=64)
+
+    games = [
+        *_generate_side(
+            [0],
+            config=config,
+            white_evaluator=raw,
+            black_evaluator=d4,
+            white_id="uniform-raw",
+            black_id="uniform-d4",
+            pair_agent_seeds=True,
+        ),
+        *_generate_side(
+            [1],
+            config=config,
+            white_evaluator=d4,
+            black_evaluator=raw,
+            white_id="uniform-d4",
+            black_id="uniform-raw",
+            pair_agent_seeds=True,
+        ),
+    ]
+
+    assert [game.seed for game in games] == [config.seed, config.seed]
+    assert [game.white_model_id for game in games] == ["uniform-raw", "uniform-d4"]
+    assert [game.black_model_id for game in games] == ["uniform-d4", "uniform-raw"]
+    assert [game.moves[0].turn for game in games] == ["white", "white"]
 
 
 def test_restore_summaries_validates_recorded_size_and_hash(tmp_path: Path) -> None:
