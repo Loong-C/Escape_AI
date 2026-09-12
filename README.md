@@ -42,7 +42,7 @@ pwsh scripts/bootstrap.ps1
 .venv\Scripts\escape-ai run-lineage --config configs/lineages/smoke-3x3-v1.yaml
 .venv\Scripts\escape-ai generate-research-games --config configs/games/research-smoke-3x3-v1.yaml
 .venv\Scripts\escape-ai analyze-games --input "E:/Escape/_AI/games/research-smoke-3x3-v1" --output "E:/Escape/_AI/runs/research-smoke-3x3-v1/analysis.json"
-.venv\Scripts\escape-ai analyze-first-player --input "E:/Escape/_AI/games/champion-first-player-diagnostic-17x17-v1/*.parquet" --output "E:/Escape/_AI/runs/champion-first-player-diagnostic-17x17-v1/analysis.json"
+.venv\Scripts\escape-ai analyze-first-player --input "E:/Escape/_AI/games/champion-first-player-diagnostic-17x17-v1" --output "E:/Escape/_AI/runs/champion-first-player-diagnostic-17x17-v1/analysis.json"
 .venv\Scripts\escape-ai run-tactical-audit --config configs/tactics/champion-tactical-audit-17x17-v1.yaml
 .venv\Scripts\escape-ai run-symmetry-audit --config configs/symmetry/champion-symmetry-audit-17x17-v1.yaml
 .venv\Scripts\escape-ai run-symmetry-audit --config configs/symmetry/champion-symmetry-audit-17x17-v3.yaml

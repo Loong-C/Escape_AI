@@ -225,7 +225,7 @@ def test_first_player_analysis_accepts_stabilizer_symmetry_switch(
     shard = tmp_path / "stabilizer-switch.parquet"
     write_research_shard(shard, games)
 
-    result = analyze_first_player_games(str(shard), tmp_path / "analysis.json")
+    result = analyze_first_player_games(str(tmp_path), tmp_path / "analysis.json")
 
     assert result["all_pairs_mirrored"]
     assert result["mirrored_pairs"] == 1

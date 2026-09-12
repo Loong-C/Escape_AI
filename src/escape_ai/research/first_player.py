@@ -53,6 +53,8 @@ def _atomic_json(path: Path, value: object) -> None:
 
 
 def _load_traces(source: str) -> list[GameTrace]:
+    input_path = Path(source)
+    selected = str(input_path / "*.parquet") if input_path.is_dir() else source
     connection = duckdb.connect()
     try:
         rows = connection.execute(
@@ -60,7 +62,7 @@ def _load_traces(source: str) -> list[GameTrace]:
             SELECT game_id, seed, ply, turn, state, action, winner, reason
             FROM read_parquet(?) ORDER BY game_id, ply
             """,
-            [source],
+            [selected],
         ).fetchall()
     finally:
         connection.close()
