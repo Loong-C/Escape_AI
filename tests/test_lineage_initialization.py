@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
 import torch
 
 from escape_ai.training.checkpoint import save_checkpoint
 from escape_ai.training.lineage import (
     InitialCheckpointReference,
     _initialize_lineage_model,
+    _restore_shards,
     load_lineage_config,
 )
 from escape_ai.training.model import NetworkConfig, PolicyValueNet
@@ -57,9 +60,25 @@ def test_lineage_rejects_initial_checkpoint_with_wrong_network(tmp_path: Path) -
         initial_checkpoint=InitialCheckpointReference(checkpoint_path, saved.sha256),
     )
 
-    try:
+    with pytest.raises(ValueError, match="network does not match"):
         _initialize_lineage_model(config)
-    except ValueError as error:
-        assert "network does not match" in str(error)
-    else:
-        raise AssertionError("mismatched initial checkpoint was accepted")
+
+
+def test_lineage_resume_validates_replay_size_and_hash(tmp_path: Path) -> None:
+    shard = tmp_path / "replay.parquet"
+    shard.write_bytes(b"formal replay fixture")
+    digest = hashlib.sha256(shard.read_bytes()).hexdigest()
+    recorded = [
+        {
+            "path": str(shard),
+            "games": 2,
+            "positions": 17,
+            "bytes": shard.stat().st_size,
+            "sha256": digest,
+        }
+    ]
+    assert _restore_shards(recorded)[0].sha256 == digest
+
+    shard.write_bytes(b"tampered replay fixture")
+    with pytest.raises(RuntimeError, match="size mismatch"):
+        _restore_shards(recorded)

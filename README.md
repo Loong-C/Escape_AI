@@ -111,6 +111,7 @@ pwsh scripts/run_champion_symmetry_ensemble_audit.ps1
 pwsh scripts/run_champion_symmetry_comparison.ps1
 pwsh scripts/run_champion_first_player_diagnostic.ps1
 pwsh scripts/run_champion_raw_vs_d4_strength.ps1
+pwsh scripts/run_d4_native_lineages.ps1
 ```
 
 `bootstrap.ps1` 会安装首阶段依赖、建立 `E:\Escape\_AI` 目录并使用 MSVC 2022 构建 C++ 扩展。仅需重新编译时可运行 `pwsh scripts/build_cpp.ps1`。

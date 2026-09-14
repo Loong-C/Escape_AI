@@ -1,0 +1,44 @@
+schema_version: 1
+run_id: lineage-c-d4-finetune-17x17-v1
+lineage: c-d4-finetune
+seed: 20260917
+generations: 100
+games_per_generation: 500
+games_per_shard: 100
+actor_batch_size: 64
+replay_window_shards: 100
+replay_sample_positions: 100000
+device: cuda
+require_clean_worktree: true
+
+initial_checkpoint:
+  path: "E:/Escape/_AI/checkpoints/lineage-c-17x17-v1/generation-0199.pt"
+  sha256: "0257bbee5f97e0c163ecf64eb50160fd8f8b6189b6ac042fd52dced3b0449bf3"
+  inherit_optimizer: false
+
+network:
+  input_channels: 6
+  channels: 64
+  residual_blocks: 6
+  value_channels: 16
+  value_hidden: 128
+
+self_play:
+  board_size: 17
+  simulations: 64
+  c_puct: 1.25
+  dirichlet_alpha: 0.25
+  dirichlet_fraction: 0.30
+  temperature: 0.9
+  temperature_drop_ply: 32
+  late_temperature: 0.05
+  parallel_leaves: 16
+
+learner:
+  steps: 500
+  batch_size: 256
+  learning_rate: 0.0005
+  weight_decay: 0.0001
+  gradient_clip: 5.0
+  use_amp: true
+  symmetry_augmentation: random-d4

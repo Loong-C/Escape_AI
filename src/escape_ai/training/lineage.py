@@ -172,6 +172,14 @@ def _restore_shards(raw: object) -> list[ShardSummary]:
         )
         if not summary.path.is_file():
             raise FileNotFoundError(summary.path)
+        actual_bytes = summary.path.stat().st_size
+        if actual_bytes != summary.bytes:
+            raise RuntimeError(
+                f"lineage shard size mismatch: {summary.path} "
+                f"(expected {summary.bytes}, found {actual_bytes})"
+            )
+        if sha256_file(summary.path) != summary.sha256:
+            raise RuntimeError(f"lineage shard hash mismatch: {summary.path}")
         summaries.append(summary)
     return summaries
 
