@@ -52,6 +52,7 @@ class LineageConfig:
     self_play: SelfPlayConfig
     learner: LearnerConfig
     require_clean_worktree: bool = True
+    initial_checkpoint: InitialCheckpointReference | None = None
 
     @property
     def total_games(self) -> int:
@@ -70,10 +71,28 @@ class LineageResult:
     elapsed_seconds: float
 
 
+@dataclass(frozen=True, slots=True)
+class InitialCheckpointReference:
+    path: Path
+    sha256: str
+    inherit_optimizer: bool = False
+
+
 def _mapping(value: object, label: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
         raise ValueError(f"{label} must be a mapping")
     return value
+
+
+def _initial_checkpoint(value: object | None) -> InitialCheckpointReference | None:
+    if value is None:
+        return None
+    raw = _mapping(value, "initial checkpoint")
+    return InitialCheckpointReference(
+        path=Path(str(raw["path"])),
+        sha256=str(raw["sha256"]),
+        inherit_optimizer=bool(raw.get("inherit_optimizer", False)),
+    )
 
 
 def load_lineage_config(path: Path) -> LineageConfig:
@@ -95,6 +114,7 @@ def load_lineage_config(path: Path) -> LineageConfig:
         self_play=SelfPlayConfig(**dict(_mapping(raw["self_play"], "self_play"))),
         learner=LearnerConfig(**dict(_mapping(raw["learner"], "learner"))),
         require_clean_worktree=bool(raw.get("require_clean_worktree", True)),
+        initial_checkpoint=_initial_checkpoint(raw.get("initial_checkpoint")),
     )
     positive = (
         config.generations,
@@ -108,6 +128,8 @@ def load_lineage_config(path: Path) -> LineageConfig:
         raise ValueError("lineage counts and sizes must be positive")
     if config.games_per_generation % config.games_per_shard != 0:
         raise ValueError("games_per_generation must be divisible by games_per_shard")
+    if config.learner.symmetry_augmentation not in {"none", "random-d4"}:
+        raise ValueError("unsupported lineage training symmetry augmentation")
     return config
 
 
@@ -182,6 +204,14 @@ def _progress_payload(
         "shards": [{**asdict(item), "path": str(item.path)} for item in shards],
         "checkpoints": [{**asdict(item), "path": str(item.path)} for item in checkpoints],
         "generation_metrics": generation_metrics,
+        "initial_checkpoint": (
+            {
+                **asdict(config.initial_checkpoint),
+                "path": str(config.initial_checkpoint.path),
+            }
+            if config.initial_checkpoint is not None
+            else None
+        ),
     }
 
 
@@ -199,6 +229,31 @@ def _make_optimizer(
     )
     optimizer.load_state_dict(state)
     return optimizer
+
+
+def _initialize_lineage_model(
+    config: LineageConfig,
+) -> tuple[PolicyValueNet, torch.optim.Optimizer | None, str]:
+    initial = config.initial_checkpoint
+    if initial is not None:
+        if sha256_file(initial.path) != initial.sha256:
+            raise ValueError("initial lineage checkpoint hash mismatch")
+        model, _metadata, optimizer_state = load_training_checkpoint(
+            initial.path, device=config.device
+        )
+        if model.config != config.network:
+            raise ValueError("initial checkpoint network does not match lineage config")
+        optimizer: torch.optim.Optimizer | None = None
+        if initial.inherit_optimizer:
+            if optimizer_state is None:
+                raise ValueError("initial checkpoint does not contain optimizer state")
+            optimizer = _make_optimizer(model, config.learner, optimizer_state)
+        return model, optimizer, initial.sha256[:16]
+
+    torch.manual_seed(config.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(config.seed)
+    return PolicyValueNet(config.network), None, f"{config.run_id}-initial"
 
 
 def run_lineage(
@@ -264,11 +319,7 @@ def run_lineage(
         optimizer = _make_optimizer(model, config.learner, optimizer_state)
         model_id = latest.model_id
     else:
-        torch.manual_seed(config.seed)
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed_all(config.seed)
-        model = PolicyValueNet(config.network)
-        model_id = f"{config.run_id}-initial"
+        model, optimizer, model_id = _initialize_lineage_model(config)
 
     started = time.perf_counter()
     for generation in range(completed_generations, config.generations):
@@ -335,6 +386,11 @@ def run_lineage(
                     "model_id": model_id,
                     "git_commit": git_commit,
                     "config_sha256": config_hash,
+                    "initial_checkpoint_sha256": (
+                        config.initial_checkpoint.sha256
+                        if config.initial_checkpoint is not None
+                        else None
+                    ),
                 },
             )
             shards.append(summary)
@@ -365,6 +421,7 @@ def run_lineage(
             (shard.path for shard in replay_window),
             maximum_positions=config.replay_sample_positions,
             seed=config.seed + generation,
+            symmetry_augmentation=config.learner.symmetry_augmentation,
         )
         optimizer, metrics = train_model(
             model,
@@ -390,6 +447,11 @@ def run_lineage(
                 "seed": config.seed,
                 "git_commit": git_commit,
                 "config_sha256": config_hash,
+                "initial_checkpoint_sha256": (
+                    config.initial_checkpoint.sha256
+                    if config.initial_checkpoint is not None
+                    else None
+                ),
                 "generation_data_sha256": [item.sha256 for item in generation_shards],
             },
         )

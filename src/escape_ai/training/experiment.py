@@ -70,6 +70,8 @@ def load_experiment_config(path: Path) -> ExperimentConfig:
     network = NetworkConfig(**dict(_mapping(root["network"], "network")))
     self_play = SelfPlayConfig(**dict(_mapping(root["self_play"], "self_play")))
     learner = LearnerConfig(**dict(_mapping(root["learner"], "learner")))
+    if learner.symmetry_augmentation not in {"none", "random-d4"}:
+        raise ValueError("unsupported experiment training symmetry augmentation")
     games = int(root["games"])
     games_per_shard = int(root["games_per_shard"])
     if games < 1 or games_per_shard < 1:
@@ -202,7 +204,11 @@ def run_experiment(
     if buffered:
         write_buffered(buffered)
 
-    training_batch = load_training_batch(shard.path for shard in shards)
+    training_batch = load_training_batch(
+        (shard.path for shard in shards),
+        symmetry_augmentation=config.learner.symmetry_augmentation,
+        seed=config.seed,
+    )
     optimizer, learner_metrics = train_model(
         model,
         training_batch,

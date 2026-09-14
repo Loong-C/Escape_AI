@@ -22,6 +22,16 @@ from .encoding import encode_state, legal_action_mask
 from .selfplay import SelfPlayGame
 
 SCHEMA_VERSION = 1
+TRAINING_D4_SYMMETRIES = (
+    _escape_core.Symmetry.IDENTITY,
+    _escape_core.Symmetry.ROTATE_90,
+    _escape_core.Symmetry.ROTATE_180,
+    _escape_core.Symmetry.ROTATE_270,
+    _escape_core.Symmetry.FLIP_HORIZONTAL,
+    _escape_core.Symmetry.FLIP_VERTICAL,
+    _escape_core.Symmetry.DIAGONAL_MAIN,
+    _escape_core.Symmetry.DIAGONAL_ANTI,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,13 +141,22 @@ def write_training_shard(
     )
 
 
-def load_training_batch(paths: Iterable[Path]) -> TrainingBatch:
+def load_training_batch(
+    paths: Iterable[Path],
+    *,
+    symmetry_augmentation: str = "none",
+    seed: int = 0,
+) -> TrainingBatch:
     """Load same-size shards into arrays suitable for a learner smoke run."""
 
     tables = [pq.read_table(path) for path in paths]  # type: ignore[no-untyped-call]
     if not tables:
         raise ValueError("at least one training shard is required")
-    return _table_to_training_batch(pa.concat_tables(tables))
+    return _table_to_training_batch(
+        pa.concat_tables(tables),
+        symmetry_augmentation=symmetry_augmentation,
+        seed=seed,
+    )
 
 
 def load_training_sample(
@@ -145,6 +164,7 @@ def load_training_sample(
     *,
     maximum_positions: int,
     seed: int,
+    symmetry_augmentation: str = "none",
 ) -> TrainingBatch:
     """Uniformly sample rows without materializing every replay shard."""
 
@@ -157,7 +177,11 @@ def load_training_sample(
     ]
     total_rows = sum(row_counts)
     if maximum_positions >= total_rows:
-        return load_training_batch(selected_paths)
+        return load_training_batch(
+            selected_paths,
+            symmetry_augmentation=symmetry_augmentation,
+            seed=seed,
+        )
 
     rng = np.random.default_rng(seed)
     global_rows = np.sort(rng.choice(total_rows, size=maximum_positions, replace=False))
@@ -173,18 +197,58 @@ def load_training_sample(
             columns=["state", "policy", "value_target"],
         )
         tables.append(table.take(pa.array(local)))
-    return _table_to_training_batch(pa.concat_tables(tables))
+    return _table_to_training_batch(
+        pa.concat_tables(tables),
+        symmetry_augmentation=symmetry_augmentation,
+        seed=seed,
+    )
 
 
-def _table_to_training_batch(table: Any) -> TrainingBatch:
+def transform_training_position(
+    state: _escape_core.State,
+    policy: npt.NDArray[np.float32],
+    symmetry: _escape_core.Symmetry,
+) -> tuple[_escape_core.State, npt.NDArray[np.float32]]:
+    """Apply one role-aware D4 transform to a state and its policy target."""
+
+    action_count = (state.size + 1) ** 2
+    if policy.shape != (action_count,):
+        raise ValueError("policy target has the wrong action-space shape")
+    transformed_policy = np.empty_like(policy)
+    for action in range(action_count):
+        target = _escape_core.transform_action(action, state.size, symmetry)
+        transformed_policy[target] = policy[action]
+    return state.transformed(symmetry), transformed_policy
+
+
+def _table_to_training_batch(
+    table: Any,
+    *,
+    symmetry_augmentation: str = "none",
+    seed: int = 0,
+) -> TrainingBatch:
     serialized_states = table.column("state").to_pylist()
     states = [_escape_core.State.deserialize(value) for value in serialized_states]
     board_sizes = {state.size for state in states}
     if len(board_sizes) != 1:
         raise ValueError("one training batch cannot mix board sizes")
+    policies = np.asarray(table.column("policy").to_pylist(), dtype=np.float32)
+    if symmetry_augmentation not in {"none", "random-d4"}:
+        raise ValueError(
+            f"unsupported training symmetry augmentation: {symmetry_augmentation}"
+        )
+    if symmetry_augmentation == "random-d4":
+        rng = np.random.default_rng(seed)
+        selections = rng.integers(0, len(TRAINING_D4_SYMMETRIES), size=len(states))
+        transformed = [
+            transform_training_position(state, policy, TRAINING_D4_SYMMETRIES[index])
+            for state, policy, index in zip(states, policies, selections, strict=True)
+        ]
+        states = [item[0] for item in transformed]
+        policies = np.stack([item[1] for item in transformed])
     return TrainingBatch(
         features=np.stack([encode_state(state) for state in states]),
-        policies=np.asarray(table.column("policy").to_pylist(), dtype=np.float32),
+        policies=policies,
         legal_masks=np.stack([legal_action_mask(state) for state in states]),
         values=np.asarray(table.column("value_target").to_pylist(), dtype=np.float32),
     )

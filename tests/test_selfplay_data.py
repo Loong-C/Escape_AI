@@ -9,8 +9,10 @@ import pytest
 from escape_ai import _escape_core
 from escape_ai.search import UniformEvaluator
 from escape_ai.training.data import (
+    TRAINING_D4_SYMMETRIES,
     load_training_batch,
     load_training_sample,
+    transform_training_position,
     write_training_shard,
 )
 from escape_ai.training.selfplay import SelfPlayConfig, play_self_game, play_self_games
@@ -92,3 +94,45 @@ def test_parquet_shard_round_trips_into_training_arrays(tmp_path: Path) -> None:
     repeated = load_training_sample([path], maximum_positions=5, seed=77)
     assert sample.features.shape[0] == 5
     np.testing.assert_array_equal(sample.features, repeated.features)
+
+    augmented = load_training_sample(
+        [path],
+        maximum_positions=5,
+        seed=77,
+        symmetry_augmentation="random-d4",
+    )
+    repeated_augmented = load_training_sample(
+        [path],
+        maximum_positions=5,
+        seed=77,
+        symmetry_augmentation="random-d4",
+    )
+    np.testing.assert_array_equal(augmented.features, repeated_augmented.features)
+    np.testing.assert_array_equal(augmented.policies, repeated_augmented.policies)
+    assert np.all(augmented.policies[~augmented.legal_masks] == 0.0)
+    np.testing.assert_allclose(augmented.policies.sum(axis=1), 1.0)
+
+
+def test_role_aware_training_augmentation_maps_every_d4_policy() -> None:
+    state = _escape_core.State(3)
+    state = state.apply(0)
+    state = state.apply(5)
+    legal = state.legal_actions()
+    policy = np.zeros(16, dtype=np.float32)
+    policy[legal] = np.arange(1, len(legal) + 1, dtype=np.float32)
+    policy /= policy.sum()
+
+    for symmetry in TRAINING_D4_SYMMETRIES:
+        transformed, transformed_policy = transform_training_position(
+            state, policy, symmetry
+        )
+        expected = state.transformed(symmetry)
+        assert transformed.serialize() == expected.serialize()
+        expected_legal = sorted(
+            _escape_core.transform_action(action, state.size, symmetry)
+            for action in legal
+        )
+        assert transformed.legal_actions() == expected_legal
+        for action in range(16):
+            target = _escape_core.transform_action(action, state.size, symmetry)
+            assert transformed_policy[target] == policy[action]
