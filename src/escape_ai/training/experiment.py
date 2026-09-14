@@ -227,6 +227,7 @@ def run_experiment(
             "seed": config.seed,
             "git_commit": git_commit,
             "config_sha256": config_hash,
+            "symmetry_augmentation": config.learner.symmetry_augmentation,
             "data_sha256": [shard.sha256 for shard in shards],
         },
     )

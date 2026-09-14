@@ -206,6 +206,7 @@ def _progress_payload(
         "git_commit": git_commit,
         "target_generations": config.generations,
         "target_games": config.total_games,
+        "learner": asdict(config.learner),
         "completed_generations": completed_generations,
         "active_generation": active_generation,
         "active_games": active_games,
@@ -455,6 +456,7 @@ def run_lineage(
                 "seed": config.seed,
                 "git_commit": git_commit,
                 "config_sha256": config_hash,
+                "symmetry_augmentation": config.learner.symmetry_augmentation,
                 "initial_checkpoint_sha256": (
                     config.initial_checkpoint.sha256
                     if config.initial_checkpoint is not None
