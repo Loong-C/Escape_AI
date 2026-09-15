@@ -17,7 +17,7 @@ import torch
 import yaml  # type: ignore[import-untyped]
 
 from escape_ai.paths import ensure_artifact_layout, require_artifact_capacity
-from escape_ai.search import TorchEvaluator
+from escape_ai.search import D4CanonicalEvaluator, PositionEvaluator, TorchEvaluator
 
 from .checkpoint import CheckpointSummary, save_checkpoint
 from .data import ShardSummary, load_training_batch, sha256_file, write_training_shard
@@ -39,6 +39,7 @@ class ExperimentConfig:
     network: NetworkConfig
     self_play: SelfPlayConfig
     learner: LearnerConfig
+    self_play_evaluator: str = "raw"
     self_play_batch_size: int = 1
     require_clean_worktree: bool = True
 
@@ -70,8 +71,11 @@ def load_experiment_config(path: Path) -> ExperimentConfig:
     network = NetworkConfig(**dict(_mapping(root["network"], "network")))
     self_play = SelfPlayConfig(**dict(_mapping(root["self_play"], "self_play")))
     learner = LearnerConfig(**dict(_mapping(root["learner"], "learner")))
-    if learner.symmetry_augmentation not in {"none", "random-d4"}:
+    if learner.symmetry_augmentation not in {"none", "random-d4", "canonical-d4"}:
         raise ValueError("unsupported experiment training symmetry augmentation")
+    self_play_evaluator = str(root.get("self_play_evaluator", "raw"))
+    if self_play_evaluator not in {"raw", "canonical-d4"}:
+        raise ValueError("unsupported experiment self-play evaluator")
     games = int(root["games"])
     games_per_shard = int(root["games_per_shard"])
     if games < 1 or games_per_shard < 1:
@@ -89,6 +93,7 @@ def load_experiment_config(path: Path) -> ExperimentConfig:
         network=network,
         self_play=self_play,
         learner=learner,
+        self_play_evaluator=self_play_evaluator,
         self_play_batch_size=self_play_batch_size,
         require_clean_worktree=bool(root.get("require_clean_worktree", True)),
     )
@@ -162,7 +167,12 @@ def run_experiment(
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(config.seed)
     model = PolicyValueNet(config.network)
-    evaluator = TorchEvaluator(model, config.device)
+    base_evaluator = TorchEvaluator(model, config.device)
+    evaluator: PositionEvaluator = (
+        D4CanonicalEvaluator(base_evaluator)
+        if config.self_play_evaluator == "canonical-d4"
+        else base_evaluator
+    )
     started = time.perf_counter()
     shards: list[ShardSummary] = []
     buffered: list[SelfPlayGame] = []
@@ -178,6 +188,7 @@ def run_experiment(
                     "experiment_id": config.experiment_id,
                     "git_commit": git_commit,
                     "config_sha256": config_hash,
+                    "self_play_evaluator": config.self_play_evaluator,
                 },
             )
         )
@@ -228,6 +239,7 @@ def run_experiment(
             "git_commit": git_commit,
             "config_sha256": config_hash,
             "symmetry_augmentation": config.learner.symmetry_augmentation,
+            "self_play_evaluator": config.self_play_evaluator,
             "data_sha256": [shard.sha256 for shard in shards],
         },
     )

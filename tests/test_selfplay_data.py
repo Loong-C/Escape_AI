@@ -10,6 +10,7 @@ from escape_ai import _escape_core
 from escape_ai.search import UniformEvaluator
 from escape_ai.training.data import (
     TRAINING_D4_SYMMETRIES,
+    canonicalize_training_position,
     load_training_batch,
     load_training_sample,
     transform_training_position,
@@ -136,3 +137,40 @@ def test_role_aware_training_augmentation_maps_every_d4_policy() -> None:
         for action in range(16):
             target = _escape_core.transform_action(action, state.size, symmetry)
             assert transformed_policy[target] == policy[action]
+
+
+def test_canonical_training_target_is_independent_of_source_orientation() -> None:
+    state = _escape_core.State(3).apply(0).apply(5)
+    legal = state.legal_actions()
+    policy = np.zeros(16, dtype=np.float32)
+    policy[legal] = np.arange(1, len(legal) + 1, dtype=np.float32)
+    policy /= policy.sum()
+    expected_state, expected_policy = canonicalize_training_position(state, policy)
+
+    for symmetry in TRAINING_D4_SYMMETRIES:
+        transformed_state, transformed_policy = transform_training_position(
+            state, policy, symmetry
+        )
+        actual_state, actual_policy = canonicalize_training_position(
+            transformed_state, transformed_policy
+        )
+        assert actual_state.serialize() == expected_state.serialize()
+        np.testing.assert_allclose(actual_policy, expected_policy, atol=1e-8)
+
+
+def test_canonical_training_target_averages_a_symmetric_state_stabilizer() -> None:
+    state = _escape_core.State(3)
+    legal = state.legal_actions()
+    policy = np.zeros(16, dtype=np.float32)
+    policy[legal] = np.arange(1, len(legal) + 1, dtype=np.float32)
+    policy /= policy.sum()
+
+    canonical, canonical_policy = canonicalize_training_position(state, policy)
+
+    assert canonical.serialize() == state.serialize()
+    for symmetry in TRAINING_D4_SYMMETRIES:
+        _, transformed_policy = transform_training_position(
+            canonical, canonical_policy, symmetry
+        )
+        np.testing.assert_allclose(transformed_policy, canonical_policy, atol=1e-8)
+    np.testing.assert_allclose(canonical_policy.sum(), 1.0)

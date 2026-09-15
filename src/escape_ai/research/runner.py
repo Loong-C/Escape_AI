@@ -18,7 +18,12 @@ import yaml  # type: ignore[import-untyped]
 
 from escape_ai import _escape_core
 from escape_ai.paths import ensure_artifact_layout, require_artifact_capacity
-from escape_ai.search import D4SymmetryEnsembleEvaluator, PositionEvaluator, TorchEvaluator
+from escape_ai.search import (
+    D4CanonicalEvaluator,
+    D4SymmetryEnsembleEvaluator,
+    PositionEvaluator,
+    TorchEvaluator,
+)
 from escape_ai.training.checkpoint import load_checkpoint
 from escape_ai.training.data import sha256_file
 
@@ -134,7 +139,7 @@ def load_research_run_config(path: Path) -> ResearchRunConfig:
         if any(value % 2 for value in paired_counts):
             raise ValueError("paired-start counts and batch size must be even")
     for evaluator in (config.white_evaluator, config.black_evaluator):
-        if evaluator.kind not in {"raw", "d4-ensemble"}:
+        if evaluator.kind not in {"raw", "d4-ensemble", "canonical-d4"}:
             raise ValueError(f"unsupported research evaluator: {evaluator.kind}")
         if evaluator.maximum_batch_size < 1:
             raise ValueError("research evaluator batch sizes must be positive")
@@ -247,7 +252,11 @@ def _generate_side(
 
 
 def _agent_id(model: ModelReference, evaluator: EvaluatorReference) -> str:
-    suffix = "raw" if evaluator.kind == "raw" else "d4"
+    suffix = {
+        "raw": "raw",
+        "d4-ensemble": "d4e",
+        "canonical-d4": "d4c",
+    }[evaluator.kind]
     return f"{model.model_id}-{suffix}"
 
 
@@ -257,6 +266,11 @@ def _wrap_evaluator(
 ) -> PositionEvaluator:
     if reference.kind == "d4-ensemble":
         return D4SymmetryEnsembleEvaluator(
+            base,
+            maximum_batch_size=reference.maximum_batch_size,
+        )
+    if reference.kind == "canonical-d4":
+        return D4CanonicalEvaluator(
             base,
             maximum_batch_size=reference.maximum_batch_size,
         )

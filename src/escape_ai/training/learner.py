@@ -68,7 +68,7 @@ def train_model(
     _validate_batch(batch)
     if config.steps < 1 or config.batch_size < 1:
         raise ValueError("learner steps and batch size must be positive")
-    if config.symmetry_augmentation not in {"none", "random-d4"}:
+    if config.symmetry_augmentation not in {"none", "random-d4", "canonical-d4"}:
         raise ValueError("unsupported learner symmetry augmentation")
     random.seed(seed)
     np.random.seed(seed)

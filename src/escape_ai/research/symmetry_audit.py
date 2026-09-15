@@ -21,6 +21,7 @@ import yaml  # type: ignore[import-untyped]
 from escape_ai import _escape_core
 from escape_ai.paths import ensure_artifact_layout, require_artifact_capacity
 from escape_ai.search import (
+    D4CanonicalEvaluator,
     D4SymmetryEnsembleEvaluator,
     Evaluation,
     PositionEvaluator,
@@ -232,7 +233,7 @@ def load_symmetry_audit_config(path: Path) -> SymmetryAuditConfig:
         raise ValueError("symmetry-audit counts and search constants must be positive")
     if config.search.samples_per_stratum > config.samples_per_stratum:
         raise ValueError("search sample count cannot exceed inference sample count")
-    if config.evaluator.kind not in {"raw", "d4-ensemble"}:
+    if config.evaluator.kind not in {"raw", "d4-ensemble", "canonical-d4"}:
         raise ValueError(f"unsupported symmetry-audit evaluator: {config.evaluator.kind}")
     maximum_thresholds = (
         config.decision_thresholds.maximum_neural_p95_value_error,
@@ -712,14 +713,19 @@ def run_symmetry_audit(
         torch.cuda.manual_seed_all(config.seed)
     model, _ = load_checkpoint(config.checkpoint.path, device=config.device)
     base_evaluator = TorchEvaluator(model, config.device)
-    evaluator: PositionEvaluator = (
-        D4SymmetryEnsembleEvaluator(
+    evaluator: PositionEvaluator
+    if config.evaluator.kind == "d4-ensemble":
+        evaluator = D4SymmetryEnsembleEvaluator(
             base_evaluator,
             maximum_batch_size=config.evaluator.maximum_batch_size,
         )
-        if config.evaluator.kind == "d4-ensemble"
-        else base_evaluator
-    )
+    elif config.evaluator.kind == "canonical-d4":
+        evaluator = D4CanonicalEvaluator(
+            base_evaluator,
+            maximum_batch_size=config.evaluator.maximum_batch_size,
+        )
+    else:
+        evaluator = base_evaluator
     samples = _load_samples(
         config.source.parquet,
         config.samples_per_stratum,

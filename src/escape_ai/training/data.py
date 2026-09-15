@@ -221,6 +221,37 @@ def transform_training_position(
     return state.transformed(symmetry), transformed_policy
 
 
+def canonicalize_training_position(
+    state: _escape_core.State,
+    policy: npt.NDArray[np.float32],
+) -> tuple[_escape_core.State, npt.NDArray[np.float32]]:
+    """Map a training target to one D4-canonical state representation.
+
+    If the position has a non-trivial stabilizer, every source-to-canonical
+    transform is averaged. The resulting target is therefore invariant to the
+    arbitrary transform chosen for a symmetric state.
+    """
+
+    transformed = [
+        (*transform_training_position(state, policy, symmetry), index)
+        for index, symmetry in enumerate(TRAINING_D4_SYMMETRIES)
+    ]
+    keyed = [
+        (candidate_state.serialize(), index, candidate_state, candidate_policy)
+        for candidate_state, candidate_policy, index in transformed
+    ]
+    key, _index, canonical, _policy = min(keyed, key=lambda item: (item[0], item[1]))
+    policies = [
+        candidate_policy
+        for candidate_key, _, _, candidate_policy in keyed
+        if candidate_key == key
+    ]
+    canonical_policy = np.mean(np.stack(policies).astype(np.float64), axis=0).astype(
+        np.float32
+    )
+    return canonical, canonical_policy
+
+
 def _table_to_training_batch(
     table: Any,
     *,
@@ -233,7 +264,7 @@ def _table_to_training_batch(
     if len(board_sizes) != 1:
         raise ValueError("one training batch cannot mix board sizes")
     policies = np.asarray(table.column("policy").to_pylist(), dtype=np.float32)
-    if symmetry_augmentation not in {"none", "random-d4"}:
+    if symmetry_augmentation not in {"none", "random-d4", "canonical-d4"}:
         raise ValueError(
             f"unsupported training symmetry augmentation: {symmetry_augmentation}"
         )
@@ -243,6 +274,13 @@ def _table_to_training_batch(
         transformed = [
             transform_training_position(state, policy, TRAINING_D4_SYMMETRIES[index])
             for state, policy, index in zip(states, policies, selections, strict=True)
+        ]
+        states = [item[0] for item in transformed]
+        policies = np.stack([item[1] for item in transformed])
+    elif symmetry_augmentation == "canonical-d4":
+        transformed = [
+            canonicalize_training_position(state, policy)
+            for state, policy in zip(states, policies, strict=True)
         ]
         states = [item[0] for item in transformed]
         policies = np.stack([item[1] for item in transformed])

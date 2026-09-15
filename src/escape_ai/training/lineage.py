@@ -16,7 +16,7 @@ import torch
 import yaml  # type: ignore[import-untyped]
 
 from escape_ai.paths import ensure_artifact_layout, require_artifact_capacity
-from escape_ai.search import TorchEvaluator
+from escape_ai.search import D4CanonicalEvaluator, PositionEvaluator, TorchEvaluator
 
 from .checkpoint import (
     CheckpointSummary,
@@ -51,6 +51,7 @@ class LineageConfig:
     network: NetworkConfig
     self_play: SelfPlayConfig
     learner: LearnerConfig
+    self_play_evaluator: str = "raw"
     require_clean_worktree: bool = True
     initial_checkpoint: InitialCheckpointReference | None = None
 
@@ -113,6 +114,7 @@ def load_lineage_config(path: Path) -> LineageConfig:
         network=NetworkConfig(**dict(_mapping(raw["network"], "network"))),
         self_play=SelfPlayConfig(**dict(_mapping(raw["self_play"], "self_play"))),
         learner=LearnerConfig(**dict(_mapping(raw["learner"], "learner"))),
+        self_play_evaluator=str(raw.get("self_play_evaluator", "raw")),
         require_clean_worktree=bool(raw.get("require_clean_worktree", True)),
         initial_checkpoint=_initial_checkpoint(raw.get("initial_checkpoint")),
     )
@@ -128,8 +130,14 @@ def load_lineage_config(path: Path) -> LineageConfig:
         raise ValueError("lineage counts and sizes must be positive")
     if config.games_per_generation % config.games_per_shard != 0:
         raise ValueError("games_per_generation must be divisible by games_per_shard")
-    if config.learner.symmetry_augmentation not in {"none", "random-d4"}:
+    if config.learner.symmetry_augmentation not in {
+        "none",
+        "random-d4",
+        "canonical-d4",
+    }:
         raise ValueError("unsupported lineage training symmetry augmentation")
+    if config.self_play_evaluator not in {"raw", "canonical-d4"}:
+        raise ValueError("unsupported lineage self-play evaluator")
     return config
 
 
@@ -207,6 +215,7 @@ def _progress_payload(
         "target_generations": config.generations,
         "target_games": config.total_games,
         "learner": asdict(config.learner),
+        "self_play_evaluator": config.self_play_evaluator,
         "completed_generations": completed_generations,
         "active_generation": active_generation,
         "active_games": active_games,
@@ -353,7 +362,12 @@ def run_lineage(
                 generation_metrics=generation_metrics,
             ),
         )
-        evaluator = TorchEvaluator(model, config.device)
+        base_evaluator = TorchEvaluator(model, config.device)
+        evaluator: PositionEvaluator = (
+            D4CanonicalEvaluator(base_evaluator)
+            if config.self_play_evaluator == "canonical-d4"
+            else base_evaluator
+        )
         generation_directory = f"generation-{generation:04d}"
         generation_shards = [item for item in shards if generation_directory in item.path.parts]
         if sum(item.games for item in generation_shards) != active_games:
@@ -395,6 +409,7 @@ def run_lineage(
                     "model_id": model_id,
                     "git_commit": git_commit,
                     "config_sha256": config_hash,
+                    "self_play_evaluator": config.self_play_evaluator,
                     "initial_checkpoint_sha256": (
                         config.initial_checkpoint.sha256
                         if config.initial_checkpoint is not None
@@ -457,6 +472,7 @@ def run_lineage(
                 "git_commit": git_commit,
                 "config_sha256": config_hash,
                 "symmetry_augmentation": config.learner.symmetry_augmentation,
+                "self_play_evaluator": config.self_play_evaluator,
                 "initial_checkpoint_sha256": (
                     config.initial_checkpoint.sha256
                     if config.initial_checkpoint is not None

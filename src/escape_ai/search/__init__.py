@@ -14,12 +14,13 @@ from .puct import (
     TorchEvaluator,
     UniformEvaluator,
 )
-from .symmetry import D4SymmetryEnsembleEvaluator
+from .symmetry import D4CanonicalEvaluator, D4SymmetryEnsembleEvaluator
 
 __all__ = [
     "D4_SYMMETRIES",
     "ActionStatistics",
     "Agent",
+    "D4CanonicalEvaluator",
     "D4SymmetryEnsembleEvaluator",
     "Evaluation",
     "GreedyAgent",
