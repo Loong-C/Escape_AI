@@ -51,3 +51,27 @@ def test_d4_native_lineage_uses_full_from_scratch_budget() -> None:
     assert config.learner.learning_rate == 0.002
     assert config.learner.symmetry_augmentation == "random-d4"
     assert config.initial_checkpoint is None
+
+
+def test_canonical_d4_smoke_aligns_self_play_and_training_coordinates() -> None:
+    config = load_lineage_config(
+        Path("configs/lineages/canonical-d4-smoke-3x3-v1.yaml")
+    )
+    assert config.total_games == 8
+    assert config.self_play_evaluator == "canonical-d4"
+    assert config.learner.symmetry_augmentation == "canonical-d4"
+
+
+def test_canonical_d4_native_lineage_preserves_full_control_budget() -> None:
+    config = load_lineage_config(
+        Path("configs/lineages/lineage-d-d4-canonical-17x17-v2.yaml")
+    )
+    control = load_lineage_config(Path("configs/lineages/lineage-c-17x17-v1.yaml"))
+    assert config.total_games == control.total_games == 100_000
+    assert config.network == control.network
+    assert config.self_play == control.self_play
+    assert config.learner.steps == control.learner.steps
+    assert config.learner.learning_rate == control.learner.learning_rate
+    assert config.self_play_evaluator == "canonical-d4"
+    assert config.learner.symmetry_augmentation == "canonical-d4"
+    assert config.initial_checkpoint is None
