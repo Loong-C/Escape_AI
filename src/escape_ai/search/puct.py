@@ -6,14 +6,18 @@ import math
 import random
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import numpy as np
 import numpy.typing as npt
-import torch
 
 from escape_ai import _escape_core
-from escape_ai.training import PolicyValueNet, encode_state, legal_action_mask
+from escape_ai.training.encoding import encode_state, legal_action_mask
+
+if TYPE_CHECKING:
+    import torch
+
+    from escape_ai.training.model import PolicyValueNet
 
 from .d4 import canonical_action_order, canonical_symmetry
 
@@ -47,11 +51,15 @@ class TorchEvaluator:
     """Batched masked inference for a PolicyValueNet."""
 
     def __init__(self, model: PolicyValueNet, device: torch.device | str) -> None:
+        import torch
+
         self.model = model.to(device)
         self.device = torch.device(device)
         self.model.eval()
 
     def evaluate(self, states: Sequence[_escape_core.State]) -> list[Evaluation]:
+        import torch
+
         if not states:
             return []
         sizes = {state.size for state in states}

@@ -17,8 +17,6 @@ from escape_ai.search import (
     PUCTSearch,
     TorchEvaluator,
 )
-from escape_ai.training.checkpoint import load_checkpoint
-from escape_ai.training.data import sha256_file
 
 Player = Literal["white", "black"]
 
@@ -97,6 +95,35 @@ class PlayService:
 
     def configuration(self) -> dict[str, object]:
         return {"enabled": True, "model": asdict(self.model_info)}
+
+    def choose_position(self, state: _escape_core.State, *, seed: int) -> dict[str, object]:
+        """Search a validated website position without retaining a session."""
+        if state.size != self.model_info.board_size or state.outcome["status"] != "playing":
+            raise ValueError("expected a live position of the configured board size")
+        with self._lock:
+            started = time.perf_counter()
+            result = self._search.run(
+                state, random.Random(seed), temperature=0.0, add_root_noise=False,
+                include_statistics=True,
+            )
+            kind = state.legal_move_kind(result.action)
+            if kind is None:
+                raise AssertionError("search returned an illegal action")
+            return {
+                "move": {
+                    "row": result.action // (state.size + 1),
+                    "col": result.action % (state.size + 1),
+                    "kind": kind,
+                },
+                "stats": {
+                    "score": result.root_value,
+                    "depth": 0,
+                    "nodes": self.model_info.simulations,
+                    "elapsedMs": round((time.perf_counter() - started) * 1000),
+                    "candidates": len(result.statistics),
+                },
+                "model": asdict(self.model_info),
+            }
 
     def create_game(self, human_player: Player) -> dict[str, object]:
         if human_player not in ("white", "black"):
@@ -237,6 +264,9 @@ def load_champion_play_service(
     maximum_batch_size: int = 256,
 ) -> PlayService:
     """Load the verified champion and wrap it in the stronger D4 evaluator."""
+
+    from escape_ai.training.checkpoint import load_checkpoint
+    from escape_ai.training.data import sha256_file
 
     actual_sha256 = sha256_file(checkpoint)
     if actual_sha256 != expected_sha256:

@@ -1,0 +1,5 @@
+numpy==2.2.6
+onnxruntime==1.24.4
+fastapi==0.135.1
+uvicorn==0.41.0
+pybind11==3.0.2

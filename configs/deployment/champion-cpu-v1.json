@@ -1,0 +1,17 @@
+{
+  "purpose": "Operational qualification, not a playing-strength experiment",
+  "checkpoint_sha256": "0257bbee5f97e0c163ecf64eb50160fd8f8b6189b6ac042fd52dced3b0449bf3",
+  "onnx_sha256": "9265c64979c75e8ea239e01e2b6724c10a6fbc3f07aa9765bd92af3a9f1bd962",
+  "seed": 20260927,
+  "positions_at_random_plies": [0, 10, 20, 30, 40, 60],
+  "simulations": 512,
+  "parallel_leaves": 16,
+  "c_puct": 1.5,
+  "evaluator": "role-aware-d4-ensemble",
+  "maximum_batch_size": 256,
+  "cpu_threads": 1,
+  "maximum_search_seconds": 12,
+  "maximum_peak_rss_mib": 140,
+  "minimum_host_available_mib": 40,
+  "fallback": "local RTX 4060 Ti through an authenticated loopback SSH tunnel"
+}
