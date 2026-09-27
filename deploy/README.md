@@ -7,10 +7,12 @@ footprint, runtime task and rollback commands. The CPU instructions below remain
 available for future qualification on a larger host.
 
 The Escape repository is read-only. `scripts/build_website.py` archives its
-committed source and applies the worker under `deploy/website` in a separate
+committed source and applies the HTTP client under `deploy/website` in a separate
 directory under `E:/Escape/_AI/deploy`. It preserves the original game interface,
-tutorial, local two-player mode and hint settings. The worker calls the same-origin
+tutorial, local two-player mode and hint settings. The client calls the same-origin
 `/games/Escape/api/champion/move` endpoint and never silently falls back to the old AI.
+Requests and response bodies have a 30-second deadline and expose the existing
+retry button on failure. Server inference does not depend on a browser Worker.
 
 ## Qualification before cutover
 

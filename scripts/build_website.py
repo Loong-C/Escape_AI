@@ -60,6 +60,16 @@ def adapt_match_screen(screen: Path) -> None:
             "  function restart(): void {\n"
             "    aiRequestVersion.current += 1;\n"
             "    setAiThinking(false);",
+        'error.message === "AI Worker 已关闭"':
+            'error.message === "AI 请求已取消"',
+        "          current.turn !== aiColor ||\n"
+        "          !getLegalMove(current, result.move)":
+            "          current.turn !== aiColor",
+        "        setSearchStats({ ...result.stats, difficulty });":
+            '        if (!getLegalMove(current, result.move)) {\n'
+            '          throw new Error("AI 返回的落子无效，请重试。");\n'  # noqa: RUF001
+            '        }\n'
+            "        setSearchStats({ ...result.stats, difficulty });",
     }
     content = screen.read_text(encoding="utf-8")
     for original, replacement in replacements.items():
@@ -89,6 +99,11 @@ def main() -> None:
     with tarfile.open(archive) as bundle:
         bundle.extractall(stage, filter="data")
     shutil.copyfile(repo / "deploy/website/ai.worker.ts", stage / "src/ai/ai.worker.ts")
+    shutil.copyfile(repo / "deploy/website/champion-client.ts", stage / "src/ai/champion-client.ts")
+    shutil.copyfile(repo / "deploy/website/useAiWorker.ts", stage / "src/hooks/useAiWorker.ts")
+    shutil.copyfile(
+        repo / "deploy/website/champion-client.test.ts", stage / "tests/champion-client.test.ts",
+    )
     adapt_match_screen(stage / "src/components/MatchScreen.tsx")
     pnpm = shutil.which("pnpm.cmd") or shutil.which("pnpm")
     if not pnpm:
@@ -111,7 +126,9 @@ def main() -> None:
         ["node_modules/vite/bin/vite.js", "build"],
     ):
         subprocess.run([node, *command], cwd=stage, check=True)
-    manifest = {"escape_source_commit": sha, "adapter": "Escape_AI/deploy/website/ai.worker.ts"}
+    manifest = {
+        "escape_source_commit": sha, "adapter": "Escape_AI/deploy/website/champion-client.ts",
+    }
     (stage / "dist/champion-release.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(json.dumps({"dist": str(stage / "dist"), **manifest}))
 
