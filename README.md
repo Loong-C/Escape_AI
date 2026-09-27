@@ -14,7 +14,7 @@ Escape AI 是面向 17 × 17 Escape 抽象策略游戏的计算研究平台。�
 
 - `src/escape_ai`：Python 参考实现、搜索、训练、评测和研究工具。
 - `cpp`：C++20 优化规则核心与 Python 绑定。
-- `viewer`：React/Vite/Phaser 只读棋谱查看器；棋盘只消费服务端解码后的规则状态。
+- `viewer`：React/Vite/Phaser 人机对战与棋谱查看器；棋盘只消费服务端规则状态。
 - `configs`：可提交的实验配置；机器本地覆盖放在被忽略的 `configs/local.toml`。
 - 大型数据不进入仓库。正式运行只在 Git 中保存配置、结果摘要和内容校验和。
 
@@ -63,6 +63,18 @@ cd ..
 
 随后访问 `http://127.0.0.1:8765`。查看器支持候选着访问分布、Q 值、方向距离、
 结构特征、战术标签、首尾局面与键盘时间轴；它不会修改棋谱或重新执行规则。
+
+挑战当前经过正式验证的最强 AI（谱系 C 第 199 代、角色感知 D4 集成、每手
+512 次 PUCT 模拟）：
+
+```powershell
+pwsh scripts/run_champion_play.ps1
+```
+
+打开同一地址 `http://127.0.0.1:8765`。人类可选择执白或执黑；浏览器仅提交着点，
+合法性、局面推进、胜负判定与 AI 回手全部由 C++ 规则核心和 Python 搜索服务执行。
+页面顶部仍可切换回研究棋谱模式。实现与模型凭证见
+`docs/validation/champion-human-play-17x17-v1.md`。
 
 正式实验只接受已提交配置并要求干净工作树。Parquet replay、checkpoint 和带完整
 Git/配置/数据/模型哈希的 manifest 会原子写入 `E:\Escape\_AI`。

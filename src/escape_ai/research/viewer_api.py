@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import duckdb
 
 from escape_ai import _escape_core
+
+if TYPE_CHECKING:
+    from escape_ai.play import PlayService
 
 
 class ResearchGameRepository:
@@ -141,8 +144,12 @@ class ResearchGameRepository:
         }
 
 
-def create_viewer_app(repository: ResearchGameRepository, viewer_dist: Path | None = None) -> Any:
-    """Create an optional-dependency FastAPI app bound to one read-only dataset."""
+def create_viewer_app(
+    repository: ResearchGameRepository,
+    viewer_dist: Path | None = None,
+    play_service: PlayService | None = None,
+) -> Any:
+    """Create the research viewer and optional server-authoritative play API."""
 
     from fastapi import FastAPI, HTTPException
     from fastapi.staticfiles import StaticFiles
@@ -159,6 +166,44 @@ def create_viewer_app(repository: ResearchGameRepository, viewer_dist: Path | No
         if game is None:
             raise HTTPException(status_code=404, detail="game not found")
         return game
+
+    @app.get("/api/play")
+    def play_configuration() -> dict[str, object]:
+        if play_service is None:
+            return {"enabled": False, "model": None}
+        return play_service.configuration()
+
+    @app.post("/api/play/games")
+    def create_play_game(payload: dict[str, object]) -> dict[str, object]:
+        if play_service is None:
+            raise HTTPException(status_code=503, detail="human-versus-AI play is disabled")
+        human_player = payload.get("human_player")
+        if human_player not in ("white", "black"):
+            raise HTTPException(status_code=422, detail="human_player must be white or black")
+        return play_service.create_game(human_player)
+
+    @app.get("/api/play/games/{session_id}")
+    def get_play_game(session_id: str) -> dict[str, object]:
+        if play_service is None:
+            raise HTTPException(status_code=503, detail="human-versus-AI play is disabled")
+        try:
+            return play_service.get_game(session_id)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="play session not found") from error
+
+    @app.post("/api/play/games/{session_id}/moves")
+    def play_human_move(session_id: str, payload: dict[str, object]) -> dict[str, object]:
+        if play_service is None:
+            raise HTTPException(status_code=503, detail="human-versus-AI play is disabled")
+        action = payload.get("action")
+        if isinstance(action, bool) or not isinstance(action, int):
+            raise HTTPException(status_code=422, detail="action must be an integer")
+        try:
+            return play_service.play_human_action(session_id, action)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="play session not found") from error
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
 
     if viewer_dist is not None and viewer_dist.is_dir():
         app.mount("/", StaticFiles(directory=viewer_dist, html=True), name="viewer")

@@ -419,3 +419,46 @@ def serve_viewer(
         repo_root / "viewer" / "dist",
     )
     uvicorn.run(application, host=host, port=port)
+
+
+@app.command("serve-play")
+def serve_play(
+    games: str = typer.Option(
+        "E:/Escape/_AI/games/champion-analysis-17x17-v1",
+        help="Research Parquet directory or glob shown in the secondary viewer mode",
+    ),
+    checkpoint: str = typer.Option(
+        "E:/Escape/_AI/checkpoints/lineage-c-17x17-v1/generation-0199.pt",
+        help="Verified champion checkpoint",
+    ),
+    checkpoint_sha256: str = typer.Option(
+        "0257bbee5f97e0c163ecf64eb50160fd8f8b6189b6ac042fd52dced3b0449bf3",
+        help="Expected checkpoint SHA-256",
+    ),
+    device: str = typer.Option("cuda", help="Torch inference device"),
+    simulations: int = typer.Option(512, min=1, help="PUCT simulations per AI move"),
+    host: str = typer.Option("127.0.0.1", help="Bind address"),
+    port: int = typer.Option(8765, min=1, max=65535, help="Bind port"),
+) -> None:
+    """Serve human play against the verified champion D4 agent."""
+
+    from pathlib import Path
+
+    import uvicorn
+
+    from .play import load_champion_play_service
+    from .research.viewer_api import ResearchGameRepository, create_viewer_app
+
+    repo_root = Path(__file__).resolve().parents[2]
+    play_service = load_champion_play_service(
+        Path(checkpoint),
+        expected_sha256=checkpoint_sha256,
+        device=device,
+        simulations=simulations,
+    )
+    application = create_viewer_app(
+        ResearchGameRepository(games),
+        repo_root / "viewer" / "dist",
+        play_service,
+    )
+    uvicorn.run(application, host=host, port=port)

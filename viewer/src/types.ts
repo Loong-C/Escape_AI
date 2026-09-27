@@ -79,3 +79,40 @@ export interface ResearchGame extends Omit<GameSummary, "plies" | "first_ball_mo
   moves: ResearchMove[];
   final_state: BoardState;
 }
+
+export interface PlayModelInfo {
+  name: string;
+  checkpoint_sha256: string;
+  evaluator: string;
+  board_size: number;
+  simulations: number;
+  c_puct: number;
+  parallel_leaves: number;
+  device: string;
+}
+
+export interface PlayConfiguration {
+  enabled: boolean;
+  model: PlayModelInfo | null;
+}
+
+export interface PlayMove {
+  ply: number;
+  player: Player;
+  actor: "human" | "ai";
+  action: number;
+  move_kind: string;
+  root_value: number | null;
+  elapsed_ms: number | null;
+  candidates: Candidate[];
+}
+
+export interface PlayGame {
+  session_id: string;
+  human_player: Player;
+  ai_player: Player;
+  state: BoardState;
+  legal_actions: number[];
+  moves: PlayMove[];
+  model: PlayModelInfo;
+}

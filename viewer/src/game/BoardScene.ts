@@ -5,6 +5,8 @@ import type { BoardState, Player } from "../types";
 export interface BoardView {
   state: BoardState;
   highlightedAction: number | null;
+  hoveredAction: number | null;
+  legalActions: readonly number[];
 }
 
 const CANVAS_SIZE = 1000;
@@ -56,7 +58,7 @@ export class BoardScene extends Phaser.Scene {
     this.children.removeAll(true);
     if (!this.view) return;
 
-    const { state, highlightedAction } = this.view;
+    const { state, highlightedAction, hoveredAction, legalActions } = this.view;
     const graphics = this.add.graphics();
     graphics.fillStyle(COLORS.background, 1);
     graphics.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
@@ -91,6 +93,7 @@ export class BoardScene extends Phaser.Scene {
     this.drawTargetEdges(graphics, state);
     this.drawWalls(graphics, state);
     this.drawPoints(graphics, state);
+    this.drawLegalActions(graphics, state, legalActions);
 
     if (!(state.outcome.status === "won" && state.outcome.reason === "escaped")) {
       const step = BOARD_LENGTH / state.size;
@@ -110,6 +113,33 @@ export class BoardScene extends Phaser.Scene {
       graphics.lineStyle(4, COLORS.accent, 1);
       const markerRadius = Math.min(24, Math.max(14, BOARD_LENGTH / state.size / 2.8));
       graphics.strokeCircle(selected.x, selected.y, markerRadius);
+    }
+    if (hoveredAction !== null) {
+      const width = state.size + 1;
+      const hovered = this.point(
+        state.size,
+        Math.floor(hoveredAction / width),
+        hoveredAction % width,
+      );
+      graphics.fillStyle(COLORS.accent, 0.22);
+      graphics.fillCircle(hovered.x, hovered.y, Math.max(12, BOARD_LENGTH / state.size / 3.1));
+      graphics.lineStyle(3, COLORS.white, 0.95);
+      graphics.strokeCircle(hovered.x, hovered.y, Math.max(12, BOARD_LENGTH / state.size / 3.1));
+    }
+  }
+
+  private drawLegalActions(
+    graphics: Phaser.GameObjects.Graphics,
+    state: BoardState,
+    legalActions: readonly number[],
+  ): void {
+    if (!legalActions.length) return;
+    const width = state.size + 1;
+    const radius = Math.max(5, BOARD_LENGTH / state.size / 8.5);
+    for (const action of legalActions) {
+      const point = this.point(state.size, Math.floor(action / width), action % width);
+      graphics.lineStyle(1.4, COLORS.accent, 0.72);
+      graphics.strokeCircle(point.x, point.y, radius);
     }
   }
 
