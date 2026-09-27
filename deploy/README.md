@@ -13,6 +13,8 @@ tutorial, local two-player mode and hint settings. The client calls the same-ori
 `/games/Escape/api/champion/move` endpoint and never silently falls back to the old AI.
 Requests and response bodies have a 30-second deadline and expose the existing
 retry button on failure. Server inference does not depend on a browser Worker.
+The tutorial overlay also fixes distance display timing, supplies minimal worked
+examples, and compares values before and after placement at the same ball origin.
 
 ## Qualification before cutover
 

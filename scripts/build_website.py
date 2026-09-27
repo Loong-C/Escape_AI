@@ -1,4 +1,4 @@
-"""Build Escape's committed UI with the champion worker, without editing Escape."""
+"""Build Escape's committed UI with deployment overlays, without editing Escape."""
 
 from __future__ import annotations
 
@@ -105,6 +105,11 @@ def main() -> None:
         repo / "deploy/website/champion-client.test.ts", stage / "tests/champion-client.test.ts",
     )
     adapt_match_screen(stage / "src/components/MatchScreen.tsx")
+    shutil.copyfile(
+        repo / "deploy/website/TutorialScreen.tsx", stage / "src/components/TutorialScreen.tsx",
+    )
+    shutil.copyfile(repo / "deploy/website/lessons.ts", stage / "src/tutorial/lessons.ts")
+    shutil.copyfile(repo / "deploy/website/tutorial.test.ts", stage / "tests/tutorial.test.ts")
     pnpm = shutil.which("pnpm.cmd") or shutil.which("pnpm")
     if not pnpm:
         raise RuntimeError("pnpm is required")
