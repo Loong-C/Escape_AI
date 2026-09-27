@@ -1,8 +1,8 @@
-# Champion website integration — prepared, not deployed
+# Champion website integration — preparation record
 
-Update: upload was subsequently authorized and VPS qualification failed. See
-`champion-production-qualification-20260927.md` for the current deployment status;
-the production-status section below records the earlier preparation stage.
+Update: deployment is now live using the authorized local GPU fallback. See
+`champion-website-live-20260927.md` for final status. This document records the
+earlier preparation stage; its pending-approval statements are historical.
 
 ## Selected agent
 

@@ -1,5 +1,9 @@
 # Production qualification: VPS rejected, local GPU verified
 
+Update: the dedicated tunnel and local task were subsequently authorized and
+deployed. See `champion-website-live-20260927.md` for the completed deployment and
+VPS cleanup. The pending-approval status below is a historical checkpoint.
+
 The user authorized uploading inference source and the champion model to
 `lab-vps` (139.59.239.152). The operational workload was committed before execution
 in `configs/deployment/champion-cpu-v1.json`; deployed inference source is commit

@@ -1,5 +1,11 @@
 # Champion website deployment
 
+Production is live using the local RTX 4060 Ti through the restricted SSH tunnel.
+The VPS CPU trial failed and its environment/model/build tools were removed.
+See `docs/validation/champion-website-live-20260927.md` for verified URLs,
+footprint, runtime task and rollback commands. The CPU instructions below remain
+available for future qualification on a larger host.
+
 The Escape repository is read-only. `scripts/build_website.py` archives its
 committed source and applies the worker under `deploy/website` in a separate
 directory under `E:/Escape/_AI/deploy`. It preserves the original game interface,
