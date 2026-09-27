@@ -27,3 +27,22 @@ Browser artifacts are under
 `E:/Escape/_AI/deploy/champion-20260927/website-http-v1`;
 reproduction scripts are in its parent. Browser simulation is not a test on the
 user's physical phone. An already-open page must reload to obtain this repair.
+
+## Published verification
+
+Frontend commit `77574d14229cf93cb188714acd0f2c89b2fae577` was published as
+`/var/www/linkukai/escape/releases/champion-77574d1`. Both public domains returned
+that release manifest. The archive was 552,043 bytes and was removed after
+checksum validation and atomic activation; extracted static files total 1,875,859
+bytes. No backend, model, dependency or resident process was added to the VPS.
+
+On the public `www` site, Chromium at 390 × 844 with Worker construction forced
+to throw completed a real champion request with HTTP 200 and 512 search nodes in
+2,399 ms, placed at (7, 9), and advanced to the human's turn. The served entry
+asset was `index-ceDqLnpA.js`. The pre-existing blocked Cloudflare analytics beacon
+remains unrelated to game requests.
+
+The previous release `champion-34116c2` is retained. A frontend-only rollback can
+atomically repoint `/var/www/linkukai/public/games/Escape` to that directory;
+the GPU tunnel and Nginx configuration do not need modification. The record is
+`/opt/escape-champion/backups/champion-77574d1/website.json`.
