@@ -1,0 +1,26 @@
+[Unit]
+Description=Escape champion inference
+After=network.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+WorkingDirectory=/opt/escape-champion/current
+EnvironmentFile=/etc/escape-champion.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONPATH=/opt/escape-champion/current/src
+ExecStart=/opt/escape-champion/venv/bin/uvicorn escape_ai.play.production:app_factory --factory --host 127.0.0.1 --port 18765 --workers 1 --limit-concurrency 8 --timeout-keep-alive 5 --no-access-log
+Restart=on-failure
+RestartSec=5
+MemoryHigh=140M
+MemoryMax=160M
+TasksMax=24
+Nice=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target
