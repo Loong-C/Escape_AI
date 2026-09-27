@@ -26,3 +26,10 @@ current-origin distances, boundary overlay removal and enclosure values checked.
 The seven-step progress list now uses seven columns. Browser artifacts and build
 are under `E:/Escape/_AI/deploy/champion-20260927/website-tutorial-v1`.
 All changes are overlays in Escape_AI; the Escape repository remains read-only.
+
+Published frontend: `47af843336d93a8124886518b62253162958f3ca`, release directory
+`/var/www/linkukai/escape/releases/champion-47af843`. The public www site passed
+the same seven-lesson browser walkthrough, replay and mobile checks after cutover.
+Upload size was 552,534 bytes; extracted files total 1,877,114 bytes. The archive
+was removed after validation. Previous release `champion-77574d1` is retained for
+atomic symlink rollback; no inference service or Nginx change was necessary.
