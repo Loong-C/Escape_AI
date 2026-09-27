@@ -1,5 +1,9 @@
 # Champion website integration — prepared, not deployed
 
+Update: upload was subsequently authorized and VPS qualification failed. See
+`champion-production-qualification-20260927.md` for the current deployment status;
+the production-status section below records the earlier preparation stage.
+
 ## Selected agent
 
 Lineage C generation 199, checkpoint
