@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPost, getWallSegments, previewMove } from "../src/game";
+import { applyMove, getPost, getShortestEscapeInfo, getWallSegments, previewMove } from "../src/game";
 import { completeTutorialMove, createTutorialLessons } from "../src/tutorial/lessons";
 
 describe("Escape tutorial outcomes", () => {
@@ -71,7 +71,7 @@ describe("Escape tutorial outcomes", () => {
     });
   });
 
-  it("teaches that a right-edge escape awards white even after black moves", () => {
+  it("requires closing the upper exit to cause a right-edge escape", () => {
     const lesson = createTutorialLessons()[5];
     const preview = previewMove(lesson.initialState, lesson.target);
     const result = completeTutorialMove(
@@ -88,6 +88,12 @@ describe("Escape tutorial outcomes", () => {
       reason: "escaped",
     });
     expect(result?.state.lastMove?.escapedThrough).toBe("right");
+    expect(getShortestEscapeInfo(lesson.initialState).firstSteps).toEqual(["up", "right"]);
+    const unrelated = applyMove(lesson.initialState, { row: 8, col: 8 });
+    expect(unrelated.ball).toEqual(lesson.initialState.ball);
+    expect(unrelated.outcome.status).toBe("playing");
+    expect(preview?.before).toEqual({ up: 0, right: 0, down: 1, left: 1 });
+    expect(preview?.afterPlacement).toEqual({ up: Infinity, right: 0, down: 1, left: 1 });
   });
 
   it("teaches that the player placing the final enclosing wall wins", () => {

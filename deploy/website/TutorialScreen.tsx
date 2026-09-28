@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { AiDifficulty } from "../ai";
-import { getNeighborEscapeDistances, previewMove, type Move, type MovePreview } from "../game";
+import { getNeighborEscapeDistances, previewMove, type Move } from "../game";
 import {
   TUTORIAL_LABELS,
   completeTutorialMove,
@@ -18,9 +18,9 @@ const SUCCESS_MESSAGES: Record<TutorialLesson["label"], string> = {
   放置桩: "这枚桩尚未连接墙，所以它是浮桩。",
   形成墙: "墙已经形成，两枚白桩现在都是锚桩。",
   替换浮桩: "黑色浮桩已被白桩替换，并与左侧白桩形成了墙。",
-  最短路径长度: "上方从 8 变为 ∞；右、下、左仍是 8。三个方向并列最短，球留在原地。",
-  推动球: "落桩后，上方从 3 变为 ∞，右侧的 3 成为唯一最小值。球向右移动一格；棋盘数字随后以球的新位置重新计算。",
-  边界胜负: "球从右边界离开。左右边界属于白方，所以这一局由白方获胜。",
+  最短路径长度: "上方从 9 变为 ∞；右、下、左仍是 9。三个方向并列最短，球留在原地。",
+  推动球: "落桩后，上方从 4 变为 ∞，右侧的 4 成为唯一最小值。球向右移动一格；棋盘数字随后以球的新位置重新计算。",
+  边界胜负: "上方被墙封住，右方成为唯一最短路径，球从右边界离开。左右边界属于白方，所以白方获胜。",
   封闭胜负: "四面墙已经封闭。落下最后一枚桩的白方立即获胜。",
 };
 
@@ -31,7 +31,6 @@ export function TutorialScreen({ onHome, onStartMatch }: TutorialScreenProps) {
   const [state, setState] = useState(lesson.initialState);
   const [focusedMove, setFocusedMove] = useState<Move | null>(null);
   const [completed, setCompleted] = useState(false);
-  const [completionPreview, setCompletionPreview] = useState<MovePreview | null>(null);
 
   function handleSelect(move: Move): void {
     if (completed) return;
@@ -39,7 +38,6 @@ export function TutorialScreen({ onHome, onStartMatch }: TutorialScreenProps) {
     const result = completeTutorialMove(lesson, state, move, movePreview);
     if (!result) return;
     setState(result.state);
-    setCompletionPreview(result.preview);
     setFocusedMove(null);
     setCompleted(true);
   }
@@ -55,19 +53,13 @@ export function TutorialScreen({ onHome, onStartMatch }: TutorialScreenProps) {
     setState(lessons[nextIndex].initialState);
     setFocusedMove(null);
     setCompleted(false);
-    setCompletionPreview(null);
   }
 
   function replayLesson(): void {
     setState(lesson.initialState);
     setFocusedMove(null);
     setCompleted(false);
-    setCompletionPreview(null);
   }
-
-  const directions = ["up", "right", "down", "left"] as const;
-  const names = { up: "上", right: "右", down: "下", left: "左" };
-  const format = (value: number) => Number.isFinite(value) ? String(value) : "∞";
 
   return (
     <main id="main-content" className="game-layout tutorial-layout" tabIndex={-1}>
@@ -103,34 +95,6 @@ export function TutorialScreen({ onHome, onStartMatch }: TutorialScreenProps) {
           <p>{lesson.description}</p>
           <p className="tutorial-instruction">{lesson.instruction}</p>
         </div>
-
-        {lesson.showDistances && (
-          <section aria-label="数字变化" className="tutorial-copy">
-            <p>{completed
-              ? state.outcome.reason === "escaped" ? "球已出界，棋盘不再显示数字。" : "棋盘显示：球当前位置的数字。"
-              : "棋盘显示：落子前的当前数字。悬停不会改变数字。"}</p>
-            {completionPreview && (
-              <>
-                <p>对照球移动前的同一个位置：</p>
-                <table style={{ width: "100%", textAlign: "center" }}>
-                  <thead><tr><th scope="col">方向</th><th scope="col">落桩前</th><th scope="col">落桩后</th></tr></thead>
-                  <tbody>{directions.map(direction => (
-                    <tr key={direction}><th scope="row">{names[direction]}</th>
-                      <td>{format(completionPreview.before[direction])}</td>
-                      <td>{format(completionPreview.afterPlacement[direction])}</td></tr>
-                  ))}</tbody>
-                </table>
-              </>
-            )}
-          </section>
-        )}
-
-        {(lesson.label === "形成墙" || lesson.label === "替换浮桩") && (
-          <div className="post-legend" aria-label="桩的状态图例">
-            <span><i className="post-symbol post-symbol--float" />浮桩</span>
-            <span><i className="post-symbol post-symbol--anchor" />锚桩</span>
-          </div>
-        )}
 
         <div className="tutorial-feedback" aria-live="polite">
           {completed ? SUCCESS_MESSAGES[lesson.label] : "完成棋盘上的蓝色目标后继续。"}

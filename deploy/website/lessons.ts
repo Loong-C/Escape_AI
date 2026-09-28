@@ -62,9 +62,8 @@ function movementLessonState(): GameState {
 
 function boundaryWinLessonState(): GameState {
   return {
-    ...setPost(createGame(), CENTER, LAST_CELL - 1, "black"),
-    ball: { row: CENTER, col: LAST_CELL },
-    turn: "black",
+    ...setPost(createGame(), 0, LAST_CELL, "white"),
+    ball: { row: 0, col: LAST_CELL },
   };
 }
 
@@ -107,9 +106,9 @@ export function createTutorialLessons(): TutorialLesson[] {
     },
     {
       label: "最短路径长度",
-      title: "比较四个相邻位置的逃生长度",
-      description: "数字表示从相邻格到任意出口还需几步，不含球走向相邻格的这一步。中央四个方向起初都是 8；∞ 表示该方向被墙挡住或无法逃生。",
-      instruction: "先看当前的四个 8，再点击蓝色交点封住上方。猜一猜：剩下三个方向并列最短，球会动吗？",
+      title: "比较四个首步方向的逃生长度",
+      description: "数字表示从球当前位置出发，第一步向该方向移动，到任意出口所需的最少总步数。中央四个方向起初都是 9；∞ 表示该方向被墙挡住或无法逃生。",
+      instruction: "点击蓝色交点封住上方。",
       target: { row: CENTER, col: CENTER + 1 },
       initialState: distanceLessonState(),
       showDistances: true,
@@ -117,8 +116,8 @@ export function createTutorialLessons(): TutorialLesson[] {
     {
       label: "推动球",
       title: "唯一的最短首步推动球",
-      description: "球靠近上边和右边，两条路线同样短：上、右都是 3，下、左都是 4。只有一个方向最短时，球才向那里移动一格；不会自动一直走到出口。",
-      instruction: "封住上方后，哪个方向会成为唯一最短？落桩验证你的判断。",
+      description: "球靠近上边和右边，两条路线同样短：上、右都是 4，下、左都是 5。只有一个方向最短时，球才向那里移动一格。",
+      instruction: "点击蓝色交点封住上方，使得右方成为唯一最短路径。",
       target: { row: 3, col: 14 },
       initialState: movementLessonState(),
       showDistances: true,
@@ -126,9 +125,9 @@ export function createTutorialLessons(): TutorialLesson[] {
     {
       label: "边界胜负",
       title: "球从哪条边出去，哪一方获胜",
-      description: "左右边界属于白方，上下边界属于黑方。胜者由球离开的方向决定，不一定是最后落桩的人。",
-      instruction: "右侧的 0 表示下一步就能出界。现在轮到黑方：落桩后，猜猜谁会获胜？",
-      target: { row: CENTER, col: LAST_CELL },
+      description: "左右边界属于白方，上下边界属于黑方。胜者由球离开的方向决定。",
+      instruction: "点击蓝色交点封住上方，使小球离开边界。",
+      target: { row: 0, col: STANDARD_BOARD_SIZE },
       initialState: boundaryWinLessonState(),
       showDistances: true,
     },

@@ -110,6 +110,15 @@ def main() -> None:
     )
     shutil.copyfile(repo / "deploy/website/lessons.ts", stage / "src/tutorial/lessons.ts")
     shutil.copyfile(repo / "deploy/website/tutorial.test.ts", stage / "tests/tutorial.test.ts")
+    for name in ("BoardNeighborDistances", "StartScreen", "RulesDialog"):
+        shutil.copyfile(repo / f"deploy/website/{name}.tsx", stage / f"src/components/{name}.tsx")
+    shutil.copyfile(
+        repo / "deploy/website/distance-hints.test.ts", stage / "tests/distance-hints.test.ts",
+    )
+    test_config_path = stage / "tsconfig.node.json"
+    test_config = json.loads(test_config_path.read_text())
+    test_config["compilerOptions"]["jsx"] = "react-jsx"
+    test_config_path.write_text(json.dumps(test_config, indent=2) + "\n")
     pnpm = shutil.which("pnpm.cmd") or shutil.which("pnpm")
     if not pnpm:
         raise RuntimeError("pnpm is required")
