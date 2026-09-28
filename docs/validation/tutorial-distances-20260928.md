@@ -20,3 +20,10 @@ lessons and checked unchanged pre-move numbers on hover, removed content, no
 horizontal overflow, local-match center values 9/9/9/9 and updated rule text.
 The boundary screenshot was visually inspected. Artifacts are under
 `E:/Escape/_AI/deploy/champion-20260928/website-tutorial-v2`.
+
+Published commit: `285672c6e31b4f602ce0d22fa3184da530fcb5bf`, release
+`/var/www/linkukai/escape/releases/champion-285672c`. The public www website
+passed the same seven-lesson, local-match and rules-dialog browser checks.
+Archive: 551,999 bytes, deleted after checksum validation and activation;
+extracted static files: 1,875,558 bytes. Previous release `champion-47af843`
+remains available for atomic symlink rollback. No backend configuration changed.
