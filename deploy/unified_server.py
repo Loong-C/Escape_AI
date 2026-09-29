@@ -237,6 +237,8 @@ def apply(release, archives):
                 "-fsS",
                 "--max-time",
                 "10",
+                "--cacert",
+                "/etc/nginx/ssl/linkukai/fullchain.pem",
                 "--resolve",
                 "linkukai.com:443:127.0.0.1",
                 f"https://linkukai.com/{name}/",
