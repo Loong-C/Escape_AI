@@ -1,3 +1,33 @@
+# Shared website deployment (2026-09-29)
+
+Production entry points are `/Escape/`, `/Origametry/` and `/VocaPTest/` on
+`https://linkukai.com`. All `/games` paths return 404, with no redirects.
+
+`deploy/unified_server.py` performs the initial migration with configuration backups,
+archive validation, Nginx validation, origin checks and rollback on failure.
+The VPS serves static files and proxies two loopback ports; no Python model runs there.
+A persistent 1 GiB swapfile provides headroom for system maintenance.
+
+`scripts/run_shared_gpu.ps1` supervises two independent CUDA services and one SSH
+connection with remote forwards 18765 and 18766. It runs from an immutable deployment
+snapshot via the Windows scheduled task `LinkukaiGPU`, at user login. It requires
+an awake, connected, signed-in PC. Each backend restarts independently after exit.
+Runtime settings and credentials are outside Git under `E:/Escape/_AI/deploy`.
+The dedicated SSH key can listen only on the two VPS loopback ports.
+
+The browser checks readiness before starting a game or uploading audio. Nginx checks
+upstream readiness before accepting inference requests and normalizes failures to
+HTTP 503 with `服务器不可用`. GPU jobs are bounded, with HTTP 429 for busy services.
+Escape uses its existing verified champion and 512 simulations. VocaPTest requires
+CUDA, prewarms MERT and processes one analysis at a time with batch size 1. Producer
+catalog data is exported into the static website so it remains available offline.
+
+Frontend updates must preserve these routes, authentication, readiness checks and
+error mappings. Older CPU-only install instructions below are retained for reference;
+do not run the CPU installer on this 458 MiB VPS. HAProxy and Xray stay unchanged.
+
+---
+
 # Champion website deployment
 
 Production is live using the local RTX 4060 Ti through the restricted SSH tunnel.
@@ -10,7 +40,7 @@ The Escape repository is read-only. `scripts/build_website.py` archives its
 committed source and applies the HTTP client under `deploy/website` in a separate
 directory under `E:/Escape/_AI/deploy`. It preserves the original game interface,
 tutorial, local two-player mode and hint settings. The client calls the same-origin
-`/games/Escape/api/champion/move` endpoint and never silently falls back to the old AI.
+`/Escape/api/champion/move` endpoint and never silently falls back to the old AI.
 Requests and response bodies have a 30-second deadline and expose the existing
 retry button on failure. Server inference does not depend on a browser Worker.
 The tutorial overlay fixes distance display timing and supplies minimal worked
@@ -59,7 +89,7 @@ this is not an authoritative multiplayer or ranked-game service.
 
 Upload the verified website `dist` into a new immutable directory under
 `/var/www/linkukai/escape/releases`. Verify file checksums before atomically
-switching `/var/www/linkukai/public/games/Escape`. Save the prior symlink target and
+switching `/var/www/linkukai/public/Escape`. Save the prior symlink target and
 Nginx configuration before changes. Verify both `www.linkukai.com` and
 `linkukai.com` through the public proxy, including one actual 512-simulation move.
 On any failed verification, atomically restore the previous symlink and Nginx

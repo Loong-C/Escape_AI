@@ -53,7 +53,7 @@ def create_production_app(service: PlayService, *, api_key: str) -> FastAPI:
     ) -> dict[str, object]:
         authorize(authorization)
         if not gate.acquire(blocking=False):
-            raise HTTPException(503, "AI is busy; retry shortly", headers={"Retry-After": "2"})
+            raise HTTPException(429, "AI is busy; retry shortly", headers={"Retry-After": "2"})
         try:
             state = _escape_core.State(17)
             for action, post in enumerate(position.posts):

@@ -71,7 +71,7 @@ def test_concurrent_inference_is_rejected_without_unbounded_queue(monkeypatch) -
         pending = pool.submit(request)
         try:
             assert entered.wait(5)
-            assert request().status_code == 503
+            assert request().status_code == 429
         finally:
             release.set()
         assert pending.result().status_code == 200

@@ -10,6 +10,23 @@ export interface ChampionReply {
 
 export const AI_REQUEST_CANCELLED = "AI 请求已取消";
 
+export async function checkChampionHealth(): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    const response = await fetch(`${import.meta.env.BASE_URL}api/champion/health`, {
+      signal: controller.signal, cache: "no-store",
+    });
+    if (!response.ok) return false;
+    const result = await response.json() as { enabled?: boolean; model?: { device?: string } } | null;
+    return result?.enabled === true && result.model?.device === "cuda";
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function requestChampionMove(
   state: GameState,
   requestId: number,
@@ -26,7 +43,7 @@ export async function requestChampionMove(
     };
     signal.addEventListener("abort", cancel, { once: true });
     timer = setTimeout(() => {
-      reject(new Error("AI 请求超过 30 秒，请检查网络后重试。"));
+      reject(new Error("服务器不可用"));
       controller.abort();
     }, timeoutMs);
   });
@@ -50,12 +67,12 @@ export async function requestChampionMove(
           signal: controller.signal,
         });
       } catch {
-        throw new Error("暂时无法连接冠军 AI，请检查网络后重试。");
+        throw new Error("服务器不可用");
       }
       if (!response.ok) {
-        throw new Error(response.status === 429 || response.status === 503
+        throw new Error(response.status === 429
           ? "冠军 AI 正忙，请稍后重试。"
-          : "冠军 AI 暂时无法连接，请稍后重试。");
+          : "服务器不可用");
       }
       const result = await response.json() as ChampionReply | null;
       if (!result?.move || !Number.isInteger(result.move.row)

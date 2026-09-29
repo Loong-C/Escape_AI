@@ -84,6 +84,7 @@ def main() -> None:
     parser.add_argument("--source", type=Path, default=Path("F:/Personal/Code/Escape"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--reuse-dependencies", action="store_true")
+    parser.add_argument("--base", default="/Escape/")
     args = parser.parse_args()
     repo = Path(__file__).resolve().parents[1]
     source = args.source.resolve()
@@ -98,6 +99,10 @@ def main() -> None:
     stage = output / "source"
     with tarfile.open(archive) as bundle:
         bundle.extractall(stage, filter="data")
+    vite_config = stage / "vite.config.ts"
+    vite_config.write_text(vite_config.read_text().replace(
+        'base: "/games/Escape/"', f'base: {json.dumps(args.base)}',
+    ))
     shutil.copyfile(repo / "deploy/website/ai.worker.ts", stage / "src/ai/ai.worker.ts")
     shutil.copyfile(repo / "deploy/website/champion-client.ts", stage / "src/ai/champion-client.ts")
     shutil.copyfile(repo / "deploy/website/useAiWorker.ts", stage / "src/hooks/useAiWorker.ts")

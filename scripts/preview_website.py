@@ -28,6 +28,6 @@ async def local_proxy(request: Request, call_next):
     return await call_next(request)
 
 
-app.mount("/games/Escape/api/champion", app_factory())
-app.mount("/games/Escape", StaticFiles(directory=args.dist, html=True))
+app.mount("/Escape/api/champion", app_factory())
+app.mount("/Escape", StaticFiles(directory=args.dist, html=True))
 uvicorn.run(app, host="127.0.0.1", port=args.port)

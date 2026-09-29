@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import type { AiDifficulty } from "../ai";
+import { checkChampionHealth } from "../ai/champion-client";
 import { createHomeBoard } from "../game/presets";
 import type { MatchMode } from "./MatchScreen";
 import { LazyBoardCanvas } from "./LazyBoardCanvas";
@@ -20,6 +22,30 @@ export function StartScreen({
   onTutorial,
   onMatch,
 }: StartScreenProps) {
+  const [available, setAvailable] = useState<boolean | null>(null);
+  const [checking, setChecking] = useState(false);
+  useEffect(() => {
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = async () => {
+      const ready = await checkChampionHealth();
+      if (active) {
+        setAvailable(ready);
+        timer = setTimeout(refresh, 5000);
+      }
+    };
+    void refresh();
+    return () => { active = false; clearTimeout(timer); };
+  }, []);
+
+  async function startAi() {
+    setChecking(true);
+    const ready = await checkChampionHealth();
+    setAvailable(ready);
+    setChecking(false);
+    if (ready) onMatch("ai");
+  }
+
   return (
     <main id="main-content" className="game-layout start-layout" tabIndex={-1}>
       <section className="playfield-region" aria-label="游戏棋盘预览">
@@ -51,9 +77,10 @@ export function StartScreen({
         </section>
 
         <div className="start-actions">
-          <button className="primary-button" type="button" onClick={() => onMatch("ai")}>
-            开始人机对战
+          <button className="primary-button" type="button" disabled={available !== true || checking} onClick={() => void startAi()}>
+            {available === null || checking ? "检查服务器…" : "开始人机对战"}
           </button>
+          {available === false && <p role="status">服务器不可用</p>}
           <button className="secondary-button" type="button" onClick={() => onMatch("local")}>
             开始本地双人
           </button>

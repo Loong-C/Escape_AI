@@ -14,7 +14,7 @@ import tarfile
 from pathlib import Path
 
 BASE = Path("/opt/escape-champion")
-ACTIVE = Path("/var/www/linkukai/public/games/Escape")
+ACTIVE = Path("/var/www/linkukai/public/Escape")
 NGINX = Path("/etc/nginx/sites-enabled/linkukai.conf")
 
 
@@ -110,7 +110,7 @@ def main() -> None:
         "/etc/nginx/snippets/escape-champion-locations.conf",
     )
     original = NGINX.resolve().read_text()
-    marker = "    location = /games/Escape {"
+    marker = "    location = /Escape {"
     if original.count(marker) != 1:
         raise RuntimeError("unexpected Nginx configuration")
     updated = original.replace(
