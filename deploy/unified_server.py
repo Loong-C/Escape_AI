@@ -151,7 +151,7 @@ location = /VocaPTest/api/analyze/jobs {
     limit_conn vocap_uploads 2;
     limit_conn_status 429;
     """
-        + proxy(18766, "api/analyze/jobs", secret="vocaptest-secret.conf", timeout=10)
+        + proxy(18766, "api/analyze/jobs", secret="vocaptest-secret.conf", timeout=60)
         + """}
 location ^~ /VocaPTest/api/jobs/ {
     limit_except GET { deny all; }
