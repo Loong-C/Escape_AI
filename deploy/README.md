@@ -12,6 +12,19 @@ A persistent 1 GiB swapfile provides headroom for system maintenance.
 connection with remote forwards 18765 and 18766. It runs from an immutable deployment
 snapshot via the Windows scheduled task `LinkukaiGPU`, at user login. It requires
 an awake, connected, signed-in PC. Each backend restarts independently after exit.
+The supervisor checks child processes every five seconds. SSH sends a keepalive
+every five seconds and exits after two unanswered keepalives, allowing reconnection.
+`scripts/enable_shared_gpu_autostart.ps1` installs both the login trigger and an
+indefinite one-minute trigger. A running task is left alone; an exited supervisor
+is started again. This uses the existing interactive user and does not require
+storing a Windows password. It starts after login, not before the login screen.
+The protected `gpu-processes.json` records process IDs and creation timestamps;
+a replacement supervisor adopts surviving children without duplicate GPU loads or
+port conflicts. Its operational events are in `logs/supervisor.log`.
+
+Start manually with `Start-ScheduledTask -TaskName LinkukaiGPU`; inspect with
+`Get-ScheduledTask -TaskName LinkukaiGPU` and `Get-ScheduledTaskInfo -TaskName LinkukaiGPU`.
+To intentionally suspend automatic recovery, disable the scheduled task first.
 Runtime settings and credentials are outside Git under `E:/Escape/_AI/deploy`.
 The dedicated SSH key can listen only on the two VPS loopback ports.
 
