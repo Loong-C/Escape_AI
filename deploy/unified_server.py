@@ -235,6 +235,11 @@ def apply(release, archives):
             run(
                 "curl",
                 "-fsS",
+                "--retry",
+                "5",
+                "--retry-delay",
+                "1",
+                "--retry-all-errors",
                 "--max-time",
                 "10",
                 "--cacert",
