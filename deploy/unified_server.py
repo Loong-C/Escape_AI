@@ -135,6 +135,8 @@ location = /VocaPTest/health {
         + """}
 location = /_vocap_ready {
     internal;
+    # auth_request retains the upload's Content-Length even with its body disabled.
+    client_max_body_size 51m;
     proxy_pass_request_body off;
     proxy_set_header Content-Length "";
     """
